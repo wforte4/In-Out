@@ -2,12 +2,10 @@
 
 import { useSession } from 'next-auth/react'
 import { useEffect, useState } from 'react'
-import { useRouter } from 'next/navigation'
 import AuthenticatedLayout from '../../components/AuthenticatedLayout'
 
 export default function Account() {
   const { data: session } = useSession()
-  const router = useRouter()
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [currentPassword, setCurrentPassword] = useState('')
@@ -49,7 +47,7 @@ export default function Account() {
       } else {
         setMessage('Profile updated successfully!')
       }
-    } catch (error) {
+    } catch {
       setError('An error occurred. Please try again.')
     }
 
@@ -90,7 +88,7 @@ export default function Account() {
         setNewPassword('')
         setConfirmPassword('')
       }
-    } catch (error) {
+    } catch {
       setError('An error occurred. Please try again.')
     }
 

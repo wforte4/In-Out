@@ -29,7 +29,7 @@ export default function SignIn() {
       } else {
         router.push('/dashboard')
       }
-    } catch (error) {
+    } catch {
       setError('An error occurred. Please try again.')
     }
 
@@ -142,7 +142,7 @@ export default function SignIn() {
                   href="/auth/signup" 
                   className="inline-flex items-center text-purple-600 hover:text-purple-700 font-medium transition-colors duration-200"
                 >
-                  Don't have an account? 
+                  Don&apos;t have an account? 
                   <span className="ml-1 font-semibold">Sign up</span>
                   <svg className="w-4 h-4 ml-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />

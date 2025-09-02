@@ -1,9 +1,7 @@
 'use client'
 
-import { useSession } from 'next-auth/react'
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import Link from 'next/link'
 import AuthenticatedLayout from '../../components/AuthenticatedLayout'
 
 interface User {
@@ -29,11 +27,9 @@ interface Organization {
 }
 
 export default function Organization() {
-  const { data: session } = useSession()
   const router = useRouter()
   const [organizations, setOrganizations] = useState<Organization[]>([])
   const [selectedOrgId, setSelectedOrgId] = useState<string>('')
-  const [timeEntries, setTimeEntries] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -55,20 +51,6 @@ export default function Organization() {
     }
   }
 
-  const fetchUserTimeEntries = async (userId: string) => {
-    try {
-      const response = await fetch(`/api/time/entries?userId=${userId}&organizationId=${selectedOrgId}`)
-      const data = await response.json()
-      return data.timeEntries || []
-    } catch (error) {
-      console.error('Error fetching time entries:', error)
-      return []
-    }
-  }
-
-  const getTotalHoursForUser = (entries: any[]) => {
-    return entries.reduce((total, entry) => total + (entry.totalHours || 0), 0)
-  }
 
   if (loading) {
     return (
@@ -105,7 +87,7 @@ export default function Organization() {
                   </svg>
                 </div>
                 <p className="text-xl font-semibold text-slate-600 mb-4">No organizations found</p>
-                <p className="text-slate-500">You're not part of any organizations yet</p>
+                <p className="text-slate-500">You&apos;re not part of any organizations yet</p>
               </div>
             </div>
           ) : (

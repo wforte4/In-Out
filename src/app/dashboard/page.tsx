@@ -1,6 +1,5 @@
 'use client'
 
-import { useSession } from 'next-auth/react'
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import AuthenticatedLayout from '../../components/AuthenticatedLayout'
@@ -14,7 +13,6 @@ interface TimeEntry {
 }
 
 export default function Dashboard() {
-  const { data: session } = useSession()
   const router = useRouter()
   const [activeEntry, setActiveEntry] = useState<TimeEntry | null>(null)
   const [description, setDescription] = useState('')
@@ -65,7 +63,7 @@ export default function Dashboard() {
         setDescription('')
         fetchActiveEntry()
       }
-    } catch (error) {
+    } catch {
       alert('An error occurred')
     }
     setLoading(false)

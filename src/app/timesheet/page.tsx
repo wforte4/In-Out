@@ -1,7 +1,6 @@
 'use client'
 
-import { useSession } from 'next-auth/react'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import AuthenticatedLayout from '../../components/AuthenticatedLayout'
@@ -18,8 +17,7 @@ interface TimeEntry {
   }
 }
 
-export default function Timesheet() {
-  const { data: session } = useSession()
+function TimesheetContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const [timeEntries, setTimeEntries] = useState<TimeEntry[]>([])
@@ -28,11 +26,7 @@ export default function Timesheet() {
 
   const userId = searchParams.get('userId')
 
-  useEffect(() => {
-    fetchTimeEntries()
-  }, [userId])
-
-  const fetchTimeEntries = async () => {
+  const fetchTimeEntries = useCallback(async () => {
     try {
       const url = userId ? `/api/time/entries?userId=${userId}` : '/api/time/entries'
       const response = await fetch(url)
@@ -54,7 +48,11 @@ export default function Timesheet() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [userId, router])
+
+  useEffect(() => {
+    fetchTimeEntries()
+  }, [fetchTimeEntries])
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-US', {
@@ -204,5 +202,24 @@ export default function Timesheet() {
         </div>
       </div>
     </AuthenticatedLayout>
+  )
+}
+
+export default function Timesheet() {
+  return (
+    <Suspense fallback={
+      <AuthenticatedLayout>
+        <div className="max-w-7xl mx-auto py-8 sm:px-6 lg:px-8">
+          <div className="px-4 py-6 sm:px-0 flex items-center justify-center">
+            <div className="flex items-center space-x-3">
+              <div className="w-8 h-8 bg-gradient-to-br from-purple-600 to-blue-600 rounded-lg animate-pulse"></div>
+              <span className="text-slate-600 font-medium">Loading timesheet...</span>
+            </div>
+          </div>
+        </div>
+      </AuthenticatedLayout>
+    }>
+      <TimesheetContent />
+    </Suspense>
   )
 }

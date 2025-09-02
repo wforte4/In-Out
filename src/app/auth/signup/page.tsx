@@ -49,7 +49,7 @@ export default function SignUp() {
         }
         setTimeout(() => router.push('/auth/signin'), 2000)
       }
-    } catch (error) {
+    } catch {
       setError('An error occurred. Please try again.')
     }
 
