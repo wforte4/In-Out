@@ -93,17 +93,52 @@ export default function UserDropdown({ showOrganization = true }: UserDropdownPr
               My Timesheet
             </Link>
 
+            <Link
+              href="/my-schedule"
+              onClick={() => setIsOpen(false)}
+              className="flex items-center px-4 py-3 text-sm font-medium text-slate-700 hover:bg-slate-100/70 hover:text-purple-700 transition-colors duration-200 cursor-pointer"
+            >
+              <svg className="w-5 h-5 mr-3 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3a4 4 0 118 0v4m-4 8l-2-2m6 0l-2 2m-2-4v8" />
+              </svg>
+              My Schedule
+            </Link>
+
             {showOrganization && (
-              <Link
-                href="/organization"
-                onClick={() => setIsOpen(false)}
-                className="flex items-center px-4 py-3 text-sm font-medium text-slate-700 hover:bg-slate-100/70 hover:text-purple-700 transition-colors duration-200 cursor-pointer"
-              >
-                <svg className="w-5 h-5 mr-3 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-                </svg>
-                Organization
-              </Link>
+              <>
+                <Link
+                  href="/organization"
+                  onClick={() => setIsOpen(false)}
+                  className="flex items-center px-4 py-3 text-sm font-medium text-slate-700 hover:bg-slate-100/70 hover:text-purple-700 transition-colors duration-200 cursor-pointer"
+                >
+                  <svg className="w-5 h-5 mr-3 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                  </svg>
+                  Organization
+                </Link>
+
+                <Link
+                  href="/schedules"
+                  onClick={() => setIsOpen(false)}
+                  className="flex items-center px-4 py-3 text-sm font-medium text-slate-700 hover:bg-slate-100/70 hover:text-purple-700 transition-colors duration-200 cursor-pointer"
+                >
+                  <svg className="w-5 h-5 mr-3 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  Manage Schedules
+                </Link>
+
+                <Link
+                  href="/invitations"
+                  onClick={() => setIsOpen(false)}
+                  className="flex items-center px-4 py-3 text-sm font-medium text-slate-700 hover:bg-slate-100/70 hover:text-purple-700 transition-colors duration-200 cursor-pointer"
+                >
+                  <svg className="w-5 h-5 mr-3 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                  </svg>
+                  Team Invitations
+                </Link>
+              </>
             )}
 
             <Link

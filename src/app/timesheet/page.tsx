@@ -11,10 +11,17 @@ interface TimeEntry {
   clockOut: string | null
   totalHours: number | null
   description: string | null
+  organizationId: string | null
+  editedBy: string | null
+  editedAt: string | null
   user: {
     name: string | null
     email: string
   }
+  editor?: {
+    name: string | null
+    email: string
+  } | null
 }
 
 function TimesheetContent() {
@@ -23,6 +30,12 @@ function TimesheetContent() {
   const [timeEntries, setTimeEntries] = useState<TimeEntry[]>([])
   const [loading, setLoading] = useState(true)
   const [viewingUser, setViewingUser] = useState<string | null>(null)
+  const [editingEntry, setEditingEntry] = useState<TimeEntry | null>(null)
+  const [editFormData, setEditFormData] = useState({
+    clockIn: '',
+    clockOut: '',
+    description: ''
+  })
 
   const userId = searchParams.get('userId')
 
@@ -74,6 +87,66 @@ function TimesheetContent() {
     return timeEntries.reduce((total, entry) => {
       return total + (entry.totalHours || 0)
     }, 0)
+  }
+
+  const handleEditEntry = (entry: TimeEntry) => {
+    setEditingEntry(entry)
+    setEditFormData({
+      clockIn: new Date(entry.clockIn).toISOString().slice(0, 16),
+      clockOut: entry.clockOut ? new Date(entry.clockOut).toISOString().slice(0, 16) : '',
+      description: entry.description || ''
+    })
+  }
+
+  const handleUpdateEntry = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!editingEntry) return
+
+    try {
+      const response = await fetch(`/api/time/entries/${editingEntry.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          clockIn: editFormData.clockIn,
+          clockOut: editFormData.clockOut || null,
+          description: editFormData.description,
+          organizationId: editingEntry.organizationId
+        })
+      })
+
+      if (response.ok) {
+        setEditingEntry(null)
+        fetchTimeEntries()
+      } else {
+        const data = await response.json()
+        alert(data.error || 'Failed to update entry')
+      }
+    } catch (error) {
+      console.error('Error updating entry:', error)
+      alert('Failed to update entry')
+    }
+  }
+
+  const handleDeleteEntry = async (entryId: string, organizationId: string | null) => {
+    if (!confirm('Are you sure you want to delete this time entry?')) return
+
+    try {
+      const url = organizationId 
+        ? `/api/time/entries/${entryId}?organizationId=${organizationId}`
+        : `/api/time/entries/${entryId}`
+      
+      const response = await fetch(url, { method: 'DELETE' })
+
+      if (response.ok) {
+        fetchTimeEntries()
+      } else {
+        const data = await response.json()
+        alert(data.error || 'Failed to delete entry')
+      }
+    } catch (error) {
+      console.error('Error deleting entry:', error)
+      alert('Failed to delete entry')
+    }
   }
 
   if (loading) {
@@ -192,6 +265,33 @@ function TimesheetContent() {
                             </p>
                           </div>
                         )}
+                        {entry.editedBy && entry.editedAt && (
+                          <div className="text-xs text-slate-500 mt-2">
+                            Edited by {entry.editor?.name || entry.editor?.email} on {new Date(entry.editedAt).toLocaleString()}
+                          </div>
+                        )}
+                        {userId && (
+                          <div className="flex space-x-2 mt-4">
+                            <button
+                              onClick={() => handleEditEntry(entry)}
+                              className="inline-flex items-center px-3 py-1 text-xs font-semibold text-blue-600 hover:text-white bg-blue-100 hover:bg-blue-600 rounded-lg transition-all duration-200"
+                            >
+                              <svg className="w-3 h-3 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                              </svg>
+                              Edit
+                            </button>
+                            <button
+                              onClick={() => handleDeleteEntry(entry.id, entry.organizationId)}
+                              className="inline-flex items-center px-3 py-1 text-xs font-semibold text-red-600 hover:text-white bg-red-100 hover:bg-red-600 rounded-lg transition-all duration-200"
+                            >
+                              <svg className="w-3 h-3 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                              </svg>
+                              Delete
+                            </button>
+                          </div>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -199,6 +299,59 @@ function TimesheetContent() {
               </div>
             )}
           </div>
+
+          {editingEntry && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+              <div className="bg-white rounded-2xl p-6 w-full max-w-md">
+                <h3 className="text-lg font-semibold text-slate-900 mb-4">Edit Time Entry</h3>
+                <form onSubmit={handleUpdateEntry} className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-2">Clock In</label>
+                    <input
+                      type="datetime-local"
+                      value={editFormData.clockIn}
+                      onChange={(e) => setEditFormData({...editFormData, clockIn: e.target.value})}
+                      required
+                      className="w-full px-4 py-2 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-2">Clock Out</label>
+                    <input
+                      type="datetime-local"
+                      value={editFormData.clockOut}
+                      onChange={(e) => setEditFormData({...editFormData, clockOut: e.target.value})}
+                      className="w-full px-4 py-2 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-2">Description</label>
+                    <textarea
+                      value={editFormData.description}
+                      onChange={(e) => setEditFormData({...editFormData, description: e.target.value})}
+                      className="w-full px-4 py-2 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500"
+                      rows={3}
+                    />
+                  </div>
+                  <div className="flex space-x-4">
+                    <button
+                      type="submit"
+                      className="px-6 py-2 bg-purple-600 text-white rounded-xl hover:bg-purple-700 transition-colors"
+                    >
+                      Update
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setEditingEntry(null)}
+                      className="px-6 py-2 bg-slate-200 text-slate-700 rounded-xl hover:bg-slate-300 transition-colors"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </AuthenticatedLayout>

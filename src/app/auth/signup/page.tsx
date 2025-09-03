@@ -1,10 +1,11 @@
 'use client'
 
-import { useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useState, useEffect, Suspense } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
+import PasswordInput from '../../../components/PasswordInput'
 
-export default function SignUp() {
+function SignUpContent() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [name, setName] = useState('')
@@ -14,7 +15,43 @@ export default function SignUp() {
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
   const [loading, setLoading] = useState(false)
+  const [invitationToken, setInvitationToken] = useState<string | null>(null)
+  const [invitationData, setInvitationData] = useState<{
+    email: string
+    role: string
+    organizationName: string
+    organizationCode: string
+  } | null>(null)
   const router = useRouter()
+  const searchParams = useSearchParams()
+
+  useEffect(() => {
+    const invitation = searchParams.get('invitation')
+    if (invitation) {
+      setInvitationToken(invitation)
+      fetchInvitationData(invitation)
+    }
+  }, [searchParams])
+
+  const fetchInvitationData = async (token: string) => {
+    try {
+      const response = await fetch('/api/invitations/accept', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token })
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        setInvitationData(data.invitation)
+        setEmail(data.invitation.email)
+        setOrganizationCode(data.invitation.organizationCode)
+        setMode('join')
+      }
+    } catch (error) {
+      console.error('Error fetching invitation data:', error)
+    }
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -34,6 +71,7 @@ export default function SignUp() {
           name,
           organizationName: mode === 'create' ? organizationName : undefined,
           organizationCode: mode === 'join' ? organizationCode : undefined,
+          invitationToken,
         }),
       })
 
@@ -69,33 +107,40 @@ export default function SignUp() {
                 </svg>
               </div>
               <h2 className="text-3xl font-bold text-slate-900 mb-2">
-                Get Started
+                {invitationData ? `Join ${invitationData.organizationName}` : 'Get Started'}
               </h2>
-              <p className="text-slate-600">Create your In&Out account</p>
+              <p className="text-slate-600">
+                {invitationData 
+                  ? `You've been invited to join as a ${invitationData.role.toLowerCase()}`
+                  : 'Create your In&Out account'
+                }
+              </p>
             </div>
 
-            <div className="flex bg-slate-100 rounded-2xl p-1 mb-8">
-              <button
-                onClick={() => setMode('join')}
-                className={`flex-1 px-4 py-3 rounded-xl text-sm font-semibold transition-all duration-200 ${
-                  mode === 'join'
-                    ? 'bg-white text-purple-700 shadow-sm'
-                    : 'text-slate-600 hover:text-slate-800'
-                }`}
-              >
-                Join Team
-              </button>
-              <button
-                onClick={() => setMode('create')}
-                className={`flex-1 px-4 py-3 rounded-xl text-sm font-semibold transition-all duration-200 ${
-                  mode === 'create'
-                    ? 'bg-white text-purple-700 shadow-sm'
-                    : 'text-slate-600 hover:text-slate-800'
-                }`}
-              >
-                Create Team
-              </button>
-            </div>
+            {!invitationData && (
+              <div className="flex bg-slate-100 rounded-2xl p-1 mb-8">
+                <button
+                  onClick={() => setMode('join')}
+                  className={`flex-1 px-4 py-3 rounded-xl text-sm font-semibold transition-all duration-200 ${
+                    mode === 'join'
+                      ? 'bg-white text-purple-700 shadow-sm'
+                      : 'text-slate-600 hover:text-slate-800'
+                  }`}
+                >
+                  Join Team
+                </button>
+                <button
+                  onClick={() => setMode('create')}
+                  className={`flex-1 px-4 py-3 rounded-xl text-sm font-semibold transition-all duration-200 ${
+                    mode === 'create'
+                      ? 'bg-white text-purple-700 shadow-sm'
+                      : 'text-slate-600 hover:text-slate-800'
+                  }`}
+                >
+                  Create Team
+                </button>
+              </div>
+            )}
 
             <form className="space-y-6" onSubmit={handleSubmit}>
               <div className="space-y-5">
@@ -139,34 +184,23 @@ export default function SignUp() {
                       required
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
-                      className="block w-full pl-10 pr-4 py-3 border border-slate-300 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all duration-200 bg-white/80 text-slate-900"
+                      readOnly={!!invitationData}
+                      className={`block w-full pl-10 pr-4 py-3 border border-slate-300 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all duration-200 text-slate-900 ${
+                        invitationData ? 'bg-slate-100' : 'bg-white/80'
+                      }`}
                       placeholder="your@email.com"
                     />
                   </div>
                 </div>
                 
-                <div>
-                  <label htmlFor="password" className="block text-sm font-semibold text-slate-700 mb-2">
-                    Password
-                  </label>
-                  <div className="relative">
-                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                      <svg className="w-5 h-5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                      </svg>
-                    </div>
-                    <input
-                      id="password"
-                      name="password"
-                      type="password"
-                      required
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      className="block w-full pl-10 pr-4 py-3 border border-slate-300 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all duration-200 bg-white/80 text-slate-900"
-                      placeholder="••••••••"
-                    />
-                  </div>
-                </div>
+                <PasswordInput
+                  id="password"
+                  name="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  label="Password"
+                  required
+                />
 
                 {mode === 'create' && (
                   <div>
@@ -197,6 +231,9 @@ export default function SignUp() {
                   <div>
                     <label htmlFor="organizationCode" className="block text-sm font-semibold text-slate-700 mb-2">
                       Organization Code
+                      {invitationData && (
+                        <span className="text-green-600 text-xs font-normal ml-2">(Auto-filled from invitation)</span>
+                      )}
                     </label>
                     <div className="relative">
                       <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -211,7 +248,10 @@ export default function SignUp() {
                         required
                         value={organizationCode}
                         onChange={(e) => setOrganizationCode(e.target.value)}
-                        className="block w-full pl-10 pr-4 py-3 border border-slate-300 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all duration-200 bg-white/80 text-slate-900"
+                        readOnly={!!invitationData}
+                        className={`block w-full pl-10 pr-4 py-3 border border-slate-300 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all duration-200 text-slate-900 ${
+                          invitationData ? 'bg-slate-100' : 'bg-white/80'
+                        }`}
                         placeholder="ABC123"
                       />
                     </div>
@@ -281,5 +321,20 @@ export default function SignUp() {
         </div>
       </div>
     </div>
+  )
+}
+
+export default function SignUp() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center">
+        <div className="flex items-center space-x-3">
+          <div className="w-8 h-8 bg-gradient-to-br from-purple-600 to-blue-600 rounded-lg animate-pulse"></div>
+          <span className="text-white font-medium">Loading...</span>
+        </div>
+      </div>
+    }>
+      <SignUpContent />
+    </Suspense>
   )
 }

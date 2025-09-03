@@ -43,23 +43,40 @@ export const authOptions = {
           id: user.id,
           email: user.email,
           name: user.name,
+          image: user.profileImage,
         }
       }
     })
   ],
   callbacks: {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    session: ({ session, token }: any) => ({
-      ...session,
-      user: {
-        ...session.user,
-        id: token.uid,
-      },
-    }),
+    session: async ({ session, token }: any) => {
+      if (token.uid) {
+        // Fetch fresh user data from database
+        const user = await prisma.user.findUnique({
+          where: { id: token.uid },
+          select: { id: true, name: true, email: true, profileImage: true }
+        })
+        
+        if (user) {
+          session.user = {
+            ...session.user,
+            id: user.id,
+            name: user.name,
+            email: user.email,
+            image: user.profileImage,
+          }
+        }
+      }
+      return session
+    },
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     jwt: ({ user, token }: any) => {
       if (user) {
         token.uid = user.id;
+        token.name = user.name;
+        token.email = user.email;
+        token.image = user.image;
       }
       return token;
     },

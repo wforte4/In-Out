@@ -3,17 +3,23 @@
 import { useSession } from 'next-auth/react'
 import { useEffect, useState } from 'react'
 import AuthenticatedLayout from '../../components/AuthenticatedLayout'
+import PasswordInput from '../../components/PasswordInput'
+import ProfileImageUpload from '../../components/ProfileImageUpload'
+import Snackbar from '../../components/Snackbar'
 
 export default function Account() {
-  const { data: session } = useSession()
+  const { data: session, update: updateSession } = useSession()
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [currentPassword, setCurrentPassword] = useState('')
   const [newPassword, setNewPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [loading, setLoading] = useState(false)
-  const [message, setMessage] = useState('')
-  const [error, setError] = useState('')
+  const [snackbar, setSnackbar] = useState<{
+    show: boolean
+    message: string
+    type: 'success' | 'error'
+  }>({ show: false, message: '', type: 'success' })
 
   useEffect(() => {
     if (session?.user) {
@@ -25,8 +31,6 @@ export default function Account() {
   const handleUpdateProfile = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
-    setError('')
-    setMessage('')
 
     try {
       const response = await fetch('/api/user/profile', {
@@ -43,12 +47,26 @@ export default function Account() {
       const data = await response.json()
 
       if (!response.ok) {
-        setError(data.error || 'Failed to update profile')
+        setSnackbar({
+          show: true,
+          message: data.error || 'Failed to update profile',
+          type: 'error'
+        })
       } else {
-        setMessage('Profile updated successfully!')
+        setSnackbar({
+          show: true,
+          message: 'Profile updated successfully!',
+          type: 'success'
+        })
+        // Update the session with fresh data
+        await updateSession()
       }
     } catch {
-      setError('An error occurred. Please try again.')
+      setSnackbar({
+        show: true,
+        message: 'An error occurred. Please try again.',
+        type: 'error'
+      })
     }
 
     setLoading(false)
@@ -58,13 +76,15 @@ export default function Account() {
     e.preventDefault()
     
     if (newPassword !== confirmPassword) {
-      setError('New passwords do not match')
+      setSnackbar({
+        show: true,
+        message: 'New passwords do not match',
+        type: 'error'
+      })
       return
     }
 
     setLoading(true)
-    setError('')
-    setMessage('')
 
     try {
       const response = await fetch('/api/user/password', {
@@ -81,15 +101,27 @@ export default function Account() {
       const data = await response.json()
 
       if (!response.ok) {
-        setError(data.error || 'Failed to change password')
+        setSnackbar({
+          show: true,
+          message: data.error || 'Failed to change password',
+          type: 'error'
+        })
       } else {
-        setMessage('Password changed successfully!')
+        setSnackbar({
+          show: true,
+          message: 'Password changed successfully!',
+          type: 'success'
+        })
         setCurrentPassword('')
         setNewPassword('')
         setConfirmPassword('')
       }
     } catch {
-      setError('An error occurred. Please try again.')
+      setSnackbar({
+        show: true,
+        message: 'An error occurred. Please try again.',
+        type: 'error'
+      })
     }
 
     setLoading(false)
@@ -109,14 +141,14 @@ export default function Account() {
             <div className="bg-white/70 backdrop-blur-sm shadow-xl rounded-3xl border border-slate-200/50 overflow-hidden">
               <div className="px-8 py-8">
                 <div className="flex items-center space-x-4 mb-6">
-                  <div className="w-16 h-16 bg-gradient-to-br from-purple-500 to-pink-500 rounded-2xl flex items-center justify-center">
-                    <span className="text-white text-2xl font-bold">
-                      {(name || email).charAt(0).toUpperCase()}
-                    </span>
-                  </div>
+                  <ProfileImageUpload 
+                    currentImage={session?.user?.image}
+                    size="md"
+                    onNotification={(message, type) => setSnackbar({ show: true, message, type })}
+                  />
                   <div>
                     <h3 className="text-2xl font-bold text-slate-900">Profile Information</h3>
-                    <p className="text-slate-600">Update your personal details</p>
+                    <p className="text-slate-600">Update your personal details and photo</p>
                   </div>
                 </div>
 
@@ -197,71 +229,32 @@ export default function Account() {
                 </div>
 
                 <form onSubmit={handleChangePassword} className="space-y-6">
-                  <div>
-                    <label htmlFor="currentPassword" className="block text-sm font-semibold text-slate-700 mb-2">
-                      Current Password
-                    </label>
-                    <div className="relative">
-                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                        <svg className="w-5 h-5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                        </svg>
-                      </div>
-                      <input
-                        id="currentPassword"
-                        name="currentPassword"
-                        type="password"
-                        required
-                        value={currentPassword}
-                        onChange={(e) => setCurrentPassword(e.target.value)}
-                        className="block w-full pl-10 pr-4 py-3 border border-slate-300 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all duration-200 bg-white/80 text-slate-900"
-                      />
-                    </div>
-                  </div>
+                  <PasswordInput
+                    id="currentPassword"
+                    name="currentPassword"
+                    value={currentPassword}
+                    onChange={(e) => setCurrentPassword(e.target.value)}
+                    label="Current Password"
+                    required
+                  />
 
-                  <div>
-                    <label htmlFor="newPassword" className="block text-sm font-semibold text-slate-700 mb-2">
-                      New Password
-                    </label>
-                    <div className="relative">
-                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                        <svg className="w-5 h-5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                        </svg>
-                      </div>
-                      <input
-                        id="newPassword"
-                        name="newPassword"
-                        type="password"
-                        required
-                        value={newPassword}
-                        onChange={(e) => setNewPassword(e.target.value)}
-                        className="block w-full pl-10 pr-4 py-3 border border-slate-300 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all duration-200 bg-white/80 text-slate-900"
-                      />
-                    </div>
-                  </div>
+                  <PasswordInput
+                    id="newPassword"
+                    name="newPassword"
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    label="New Password"
+                    required
+                  />
 
-                  <div>
-                    <label htmlFor="confirmPassword" className="block text-sm font-semibold text-slate-700 mb-2">
-                      Confirm New Password
-                    </label>
-                    <div className="relative">
-                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                        <svg className="w-5 h-5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                        </svg>
-                      </div>
-                      <input
-                        id="confirmPassword"
-                        name="confirmPassword"
-                        type="password"
-                        required
-                        value={confirmPassword}
-                        onChange={(e) => setConfirmPassword(e.target.value)}
-                        className="block w-full pl-10 pr-4 py-3 border border-slate-300 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all duration-200 bg-white/80 text-slate-900"
-                      />
-                    </div>
-                  </div>
+                  <PasswordInput
+                    id="confirmPassword"
+                    name="confirmPassword"
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    label="Confirm New Password"
+                    required
+                  />
 
                   <button
                     type="submit"
@@ -278,33 +271,15 @@ export default function Account() {
             </div>
           </div>
 
-          {/* Messages */}
-          {(message || error) && (
-            <div className="mt-8">
-              {message && (
-                <div className="bg-green-50 border border-green-200 rounded-xl p-4">
-                  <div className="flex items-center">
-                    <svg className="w-5 h-5 text-green-500 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                    <span className="text-green-700 text-sm font-medium">{message}</span>
-                  </div>
-                </div>
-              )}
-              {error && (
-                <div className="bg-red-50 border border-red-200 rounded-xl p-4">
-                  <div className="flex items-center">
-                    <svg className="w-5 h-5 text-red-500 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                    <span className="text-red-700 text-sm font-medium">{error}</span>
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
         </div>
       </div>
+
+      <Snackbar
+        message={snackbar.message}
+        type={snackbar.type}
+        show={snackbar.show}
+        onClose={() => setSnackbar({ ...snackbar, show: false })}
+      />
     </AuthenticatedLayout>
   )
 }
