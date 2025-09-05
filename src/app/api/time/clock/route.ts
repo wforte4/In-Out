@@ -12,7 +12,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const { action, description } = await request.json()
+    const { action, description, projectId, organizationId } = await request.json()
 
     if (action === 'in') {
       const activeEntry = await prisma.timeEntry.findFirst({
@@ -30,7 +30,9 @@ export async function POST(request: NextRequest) {
         data: {
           userId: session.user.id,
           clockIn: new Date(),
-          description
+          description,
+          projectId,
+          organizationId
         }
       })
 
@@ -84,7 +86,21 @@ export async function GET() {
       where: {
         userId: session.user.id,
         clockOut: null
-      }
+      },
+      include: {
+        project: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+        organization: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+      },
     })
 
     return NextResponse.json({ activeEntry })

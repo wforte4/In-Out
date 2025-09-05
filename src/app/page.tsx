@@ -4,6 +4,7 @@ import { useSession } from 'next-auth/react'
 import { useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
+import Image from 'next/image'
 
 export default function Home() {
   const { data: session, status } = useSession()
@@ -33,22 +34,23 @@ export default function Home() {
           <div className="flex flex-col justify-center min-h-screen py-12">
             <div className="text-center">
               <div className="mb-8">
-                <div className="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-br from-purple-400 to-blue-600 rounded-2xl mb-6">
-                  <svg className="w-10 h-10 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
+                <div className="inline-flex items-center justify-center mb-6">
+                  <Image 
+                    src="/logo.png" 
+                    alt="In&Out - Scheduling Made Simple" 
+                    width={400} 
+                    height={120}
+                    className="object-contain"
+                  />
                 </div>
               </div>
-              <h1 className="text-5xl font-extrabold tracking-tight text-white sm:text-7xl bg-gradient-to-r from-purple-400 via-pink-500 to-red-500 bg-clip-text text-transparent">
-                In&Out
-              </h1>
               <p className="mt-6 text-xl leading-8 text-slate-300 max-w-2xl mx-auto">
                 Beautiful, intuitive time tracking for modern teams. Track hours, manage organizations, and boost productivity.
               </p>
               <div className="mt-12 flex flex-col sm:flex-row items-center justify-center gap-4">
                 <Link
                   href="/auth/signup"
-                  className="group relative inline-flex items-center justify-center px-8 py-4 text-lg font-semibold text-white transition-all duration-200 bg-gradient-to-r from-purple-600 to-blue-600 rounded-2xl hover:from-purple-700 hover:to-blue-700 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 focus:ring-offset-slate-900 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
+                  className="group relative inline-flex items-center justify-center px-8 py-4 text-lg font-semibold text-white bg-gradient-to-r from-purple-600 to-blue-600 rounded-2xl hover:from-purple-700 hover:to-blue-700 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 focus:ring-offset-slate-900 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all duration-200"
                 >
                   <span className="relative z-10">Get Started Free</span>
                   <div className="absolute inset-0 rounded-2xl bg-gradient-to-r from-purple-600 to-blue-600 opacity-0 group-hover:opacity-100 transition-opacity duration-200 blur-xl"></div>
@@ -71,9 +73,13 @@ export default function Home() {
                   <div className="absolute -inset-1 bg-gradient-to-r from-purple-600 to-blue-600 rounded-2xl blur opacity-25 group-hover:opacity-75 transition duration-1000 group-hover:duration-200"></div>
                   <div className="relative bg-slate-800/80 backdrop-blur-sm p-8 rounded-2xl border border-slate-700/50 hover:border-slate-600/50 transition-all duration-200">
                     <div className="w-12 h-12 bg-gradient-to-br from-green-400 to-emerald-600 rounded-xl flex items-center justify-center mb-4">
-                      <svg className="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                      </svg>
+                      <Image 
+                        src="/logo_simple.png" 
+                        alt="Clock Icon" 
+                        width={24} 
+                        height={24}
+                        className="object-contain filter brightness-0 invert"
+                      />
                     </div>
                     <h3 className="text-xl font-bold text-white mb-3">One-Click Tracking</h3>
                     <p className="text-slate-400 leading-relaxed">Effortless time tracking with real-time calculations and intuitive clock in/out functionality.</p>

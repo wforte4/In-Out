@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import AuthenticatedLayout from '../../components/AuthenticatedLayout'
 import SearchableSelect from '../../components/SearchableSelect'
+import Snackbar from '../../components/Snackbar'
 
 interface User {
   id: string
@@ -44,6 +45,11 @@ export default function Invitations() {
     email: '',
     role: 'EMPLOYEE'
   })
+  const [snackbar, setSnackbar] = useState<{
+    show: boolean
+    message: string
+    type: 'success' | 'error' | 'info'
+  }>({ show: false, message: '', type: 'success' })
 
   const fetchOrganizations = async () => {
     try {
@@ -97,13 +103,14 @@ export default function Invitations() {
         setFormData({ email: '', role: 'EMPLOYEE' })
         setShowInviteForm(false)
         fetchInvitations()
+        setSnackbar({ show: true, message: 'Invitation sent successfully!', type: 'success' })
       } else {
         const errorData = await response.json()
-        alert(errorData.error || 'Failed to send invitation')
+        setSnackbar({ show: true, message: errorData.error || 'Failed to send invitation', type: 'error' })
       }
     } catch (error) {
       console.error('Error sending invitation:', error)
-      alert('Failed to send invitation')
+      setSnackbar({ show: true, message: 'Failed to send invitation', type: 'error' })
     }
   }
 
@@ -121,7 +128,7 @@ export default function Invitations() {
     const baseUrl = window.location.origin
     const inviteUrl = `${baseUrl}/auth/signup?invitation=${invitation.token}`
     navigator.clipboard.writeText(inviteUrl)
-    alert('Invitation link copied to clipboard!')
+    setSnackbar({ show: true, message: 'Invitation link copied to clipboard!', type: 'info' })
   }
 
   if (loading) {
@@ -294,6 +301,13 @@ export default function Invitations() {
           )}
         </div>
       </div>
+
+      <Snackbar
+        message={snackbar.message}
+        type={snackbar.type}
+        show={snackbar.show}
+        onClose={() => setSnackbar({ ...snackbar, show: false })}
+      />
     </AuthenticatedLayout>
   )
 }

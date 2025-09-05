@@ -1,7 +1,7 @@
 'use client'
 
-import { useState, Fragment } from 'react'
-import { Combobox, Transition } from '@headlessui/react'
+import { useState, Fragment, useRef, useEffect } from 'react'
+import { Transition } from '@headlessui/react'
 
 interface Option {
   value: string
@@ -28,6 +28,9 @@ export default function SearchableSelect({
   disabled = false
 }: SearchableSelectProps) {
   const [query, setQuery] = useState('')
+  const [isOpen, setIsOpen] = useState(false)
+  const searchInputRef = useRef<HTMLInputElement>(null)
+  const containerRef = useRef<HTMLDivElement>(null)
 
   const filteredOptions = 
     query === ''
@@ -40,81 +43,171 @@ export default function SearchableSelect({
         )
 
   const selectedOption = options.find(option => option.value === value)
+  const isEmptySelection = !value || value === '' || 
+    selectedOption?.label?.includes('No specific') || 
+    selectedOption?.label?.includes('All team') ||
+    selectedOption?.label?.includes('No name') ||
+    selectedOption?.label?.includes('Choose')
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
+        setIsOpen(false)
+        setQuery('')
+      }
+    }
+
+    if (isOpen) {
+      document.addEventListener('mousedown', handleClickOutside)
+      return () => document.removeEventListener('mousedown', handleClickOutside)
+    }
+  }, [isOpen])
+
+  // Focus search input when dropdown opens
+  useEffect(() => {
+    if (isOpen && searchInputRef.current) {
+      setTimeout(() => searchInputRef.current?.focus(), 0)
+    }
+  }, [isOpen])
+
+  const handleToggle = () => {
+    if (disabled) return
+    setIsOpen(!isOpen)
+  }
+
+  const handleOptionSelect = (optionValue: string) => {
+    onChange(optionValue)
+    setIsOpen(false)
+    setQuery('')
+  }
 
   return (
-    <div className={className}>
+    <div className={className} ref={containerRef}>
       {label && (
         <label className="block text-sm font-semibold text-slate-700 mb-2">
           {label}
         </label>
       )}
-      <Combobox value={value} onChange={onChange} disabled={disabled}>
-        <div className="relative">
-          <div className="relative w-full cursor-default overflow-hidden rounded-xl bg-white/80 text-left shadow-sm border border-slate-300 focus-within:border-purple-500 focus-within:ring-2 focus-within:ring-purple-500 transition-all duration-200">
-            <Combobox.Input
-              className="w-full border-none py-3 pl-4 pr-10 text-sm leading-5 text-slate-900 focus:ring-0 focus:outline-none bg-transparent placeholder-slate-500"
-              displayValue={() => selectedOption?.label || ''}
-              onChange={(event) => setQuery(event.target.value)}
-              placeholder={placeholder}
-            />
-            <Combobox.Button className="absolute inset-y-0 right-0 flex items-center pr-2">
-              <svg className="h-5 w-5 text-slate-400" viewBox="0 0 20 20" fill="currentColor">
-                <path fillRule="evenodd" d="M10 3a.75.75 0 01.55.24l3.25 3.5a.75.75 0 11-1.1 1.02L10 4.852 7.3 7.76a.75.75 0 01-1.1-1.02l3.25-3.5A.75.75 0 0110 3zm-3.76 9.2a.75.75 0 011.06.04l2.7 2.908 2.7-2.908a.75.75 0 111.1 1.02L10.55 16.76a.75.75 0 01-1.1 0L6.2 13.24a.75.75 0 01.04-1.04z" clipRule="evenodd" />
-              </svg>
-            </Combobox.Button>
-          </div>
-          <Transition
-            as={Fragment}
-            leave="transition ease-in duration-100"
-            leaveFrom="opacity-100"
-            leaveTo="opacity-0"
-            afterLeave={() => setQuery('')}
-          >
-            <Combobox.Options className="absolute z-10 mt-1 max-h-60 w-full overflow-auto rounded-xl bg-white py-1 text-base shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none sm:text-sm">
+      
+      <div className="relative">
+        {/* Selected Value Display */}
+        <button
+          type="button"
+          onClick={handleToggle}
+          disabled={disabled}
+          className={`relative w-full cursor-pointer rounded-xl bg-white/80 text-left shadow-sm border transition-all duration-200 py-3 pl-4 pr-10 ${
+            disabled 
+              ? 'border-slate-200 bg-slate-50 cursor-not-allowed' 
+              : isOpen 
+                ? 'border-purple-500 ring-2 ring-purple-500' 
+                : 'border-slate-300 hover:border-slate-400'
+          }`}
+        >
+          <span className={`block truncate text-sm ${
+            isEmptySelection 
+              ? 'text-slate-400 italic' 
+              : 'text-slate-900'
+          }`}>
+            {selectedOption?.label || placeholder}
+          </span>
+          <span className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3">
+            <svg 
+              className={`h-4 w-4 transition-transform duration-200 ${
+                isOpen ? 'rotate-180 text-purple-600' : 'text-slate-400'
+              }`} 
+              viewBox="0 0 20 20" 
+              fill="currentColor"
+            >
+              <path fillRule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z" clipRule="evenodd" />
+            </svg>
+          </span>
+        </button>
+
+        {/* Dropdown Menu */}
+        <Transition
+          as={Fragment}
+          show={isOpen}
+          enter="transition ease-out duration-100"
+          enterFrom="opacity-0 scale-95"
+          enterTo="opacity-100 scale-100"
+          leave="transition ease-in duration-75"
+          leaveFrom="opacity-100 scale-100"
+          leaveTo="opacity-0 scale-95"
+        >
+          <div className="absolute z-20 mt-1 w-full overflow-hidden rounded-xl bg-white shadow-xl border border-slate-200">
+            {/* Search Input - only show if more than 5 options */}
+            {options.length > 5 && (
+              <div className="p-3 border-b border-slate-100 bg-slate-50/50">
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <svg className="h-4 w-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                    </svg>
+                  </div>
+                  <input
+                    ref={searchInputRef}
+                    className="w-full pl-10 pr-4 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 bg-white"
+                    placeholder="Search options..."
+                    value={query}
+                    onChange={(e) => setQuery(e.target.value)}
+                  />
+                </div>
+              </div>
+            )}
+            
+            {/* Options List */}
+            <div className={`overflow-auto ${
+              options.length > 5 ? 'max-h-48' : 'max-h-60'
+            }`}>
               {filteredOptions.length === 0 && query !== '' ? (
-                <div className="relative cursor-default select-none py-2 px-4 text-slate-700">
-                  Nothing found.
+                <div className="relative cursor-default select-none py-4 px-4 text-slate-500 text-center text-sm">
+                  <svg className="w-5 h-5 text-slate-300 mx-auto mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.172 16.172a4 4 0 015.656 0M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                  <div className="font-medium">No options found</div>
+                  <div className="text-xs text-slate-400">Try adjusting your search</div>
                 </div>
               ) : (
-                filteredOptions.map((option) => (
-                  <Combobox.Option
-                    key={option.value}
-                    className={({ active }) =>
-                      `relative cursor-default select-none py-2 pl-10 pr-4 ${
-                        active ? 'bg-purple-600 text-white' : 'text-slate-900'
-                      }`
-                    }
-                    value={option.value}
-                  >
-                    {({ selected, active }) => (
-                      <>
-                        <span
-                          className={`block truncate ${
-                            selected ? 'font-medium' : 'font-normal'
-                          }`}
-                        >
+                filteredOptions.map((option) => {
+                  const isEmptyOption = !option.value || option.value === '' || 
+                    option.label.includes('No specific') || 
+                    option.label.includes('All team') ||
+                    option.label.includes('No name') ||
+                    option.label.includes('Choose')
+                  const isSelected = value === option.value
+                  
+                  return (
+                    <button
+                      key={option.value}
+                      type="button"
+                      onClick={() => handleOptionSelect(option.value)}
+                      className={`w-full text-left px-4 py-3 cursor-pointer transition-colors border-b border-slate-50 last:border-b-0 ${
+                        isSelected 
+                          ? 'bg-purple-50 text-purple-900 font-semibold' 
+                          : 'hover:bg-slate-50 text-slate-900'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className={`block truncate text-sm ${
+                          isEmptyOption ? 'text-slate-400 italic' : ''
+                        }`}>
                           {option.label}
                         </span>
-                        {selected ? (
-                          <span
-                            className={`absolute inset-y-0 left-0 flex items-center pl-3 ${
-                              active ? 'text-white' : 'text-purple-600'
-                            }`}
-                          >
-                            <svg className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                              <path fillRule="evenodd" d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z" clipRule="evenodd" />
-                            </svg>
-                          </span>
-                        ) : null}
-                      </>
-                    )}
-                  </Combobox.Option>
-                ))
+                        {isSelected && (
+                          <svg className="h-4 w-4 text-purple-600" viewBox="0 0 20 20" fill="currentColor">
+                            <path fillRule="evenodd" d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z" clipRule="evenodd" />
+                          </svg>
+                        )}
+                      </div>
+                    </button>
+                  )
+                })
               )}
-            </Combobox.Options>
-          </Transition>
-        </div>
-      </Combobox>
+            </div>
+          </div>
+        </Transition>
+      </div>
     </div>
   )
 }

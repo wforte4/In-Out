@@ -7,7 +7,7 @@ import Image from 'next/image'
 interface ProfileImageUploadProps {
   currentImage?: string | null
   onImageUpdate?: (imageUrl: string | null) => void
-  onNotification?: (message: string, type: 'success' | 'error') => void
+  onNotification?: (message: string, type: 'success' | 'error' | 'info') => void
   size?: 'sm' | 'md' | 'lg' | 'xl'
   className?: string
 }
@@ -83,8 +83,6 @@ export default function ProfileImageUpload({
       const errorMessage = error instanceof Error ? error.message : 'Failed to upload image'
       if (onNotification) {
         onNotification(errorMessage, 'error')
-      } else {
-        alert(errorMessage)
       }
       // Reset preview on error
       setPreviewUrl(currentImage || null)
@@ -125,8 +123,6 @@ export default function ProfileImageUpload({
       const errorMessage = error instanceof Error ? error.message : 'Failed to remove image'
       if (onNotification) {
         onNotification(errorMessage, 'error')
-      } else {
-        alert(errorMessage)
       }
     } finally {
       setUploading(false)

@@ -15,6 +15,7 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url)
     const userId = searchParams.get('userId')
     const organizationId = searchParams.get('organizationId')
+    const projectId = searchParams.get('projectId')
 
     if (userId && userId !== session.user.id) {
       const membership = await prisma.membership.findFirst({
@@ -32,13 +33,27 @@ export async function GET(request: NextRequest) {
 
     const timeEntries = await prisma.timeEntry.findMany({
       where: {
-        userId: userId || session.user.id
+        userId: userId || session.user.id,
+        ...(projectId && { projectId }),
+        ...(organizationId && { organizationId }),
       },
       include: {
         user: {
           select: {
             name: true,
             email: true
+          }
+        },
+        project: {
+          select: {
+            id: true,
+            name: true,
+          }
+        },
+        organization: {
+          select: {
+            id: true,
+            name: true,
           }
         }
       },

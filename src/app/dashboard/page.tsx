@@ -1,8 +1,10 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import AuthenticatedLayout from '../../components/AuthenticatedLayout'
+import SearchableSelect from '../../components/SearchableSelect'
+import Snackbar from '../../components/Snackbar'
 
 interface TimeEntry {
   id: string
@@ -10,6 +12,25 @@ interface TimeEntry {
   clockOut: string | null
   totalHours: number | null
   description: string | null
+  project?: {
+    id: string
+    name: string
+  }
+  organization?: {
+    id: string
+    name: string
+  }
+}
+
+interface Project {
+  id: string
+  name: string
+  status: string
+}
+
+interface Organization {
+  id: string
+  name: string
 }
 
 export default function Dashboard() {
@@ -18,10 +39,74 @@ export default function Dashboard() {
   const [description, setDescription] = useState('')
   const [loading, setLoading] = useState(false)
   const [currentTime, setCurrentTime] = useState(new Date())
+  const [organizations, setOrganizations] = useState<Organization[]>([])
+  const [selectedOrgId, setSelectedOrgId] = useState<string>('')
+  const [projects, setProjects] = useState<Project[]>([])
+  const [selectedProjectId, setSelectedProjectId] = useState<string>('')
+  const [snackbar, setSnackbar] = useState<{
+    show: boolean
+    message: string
+    type: 'success' | 'error' | 'info'
+  }>({ show: false, message: '', type: 'success' })
+
+  const fetchActiveEntry = async () => {
+    try {
+      const response = await fetch('/api/time/clock')
+      const data = await response.json()
+      setActiveEntry(data.activeEntry)
+      
+      // Set selected org and project if user is currently clocked in
+      if (data.activeEntry?.organization?.id) {
+        setSelectedOrgId(data.activeEntry.organization.id)
+      }
+      if (data.activeEntry?.project?.id) {
+        setSelectedProjectId(data.activeEntry.project.id)
+      }
+    } catch (error) {
+      console.error('Error fetching active entry:', error)
+    }
+  }
+
+  const fetchOrganizations = async () => {
+    try {
+      const response = await fetch('/api/organization/members')
+      const data = await response.json()
+      if (response.ok && data.organizations) {
+        setOrganizations(data.organizations)
+        if (data.organizations.length === 1) {
+          setSelectedOrgId(data.organizations[0].id)
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching organizations:', error)
+    }
+  }
+
+  const fetchProjects = useCallback(async () => {
+    if (!selectedOrgId) return
+    
+    try {
+      const response = await fetch(`/api/projects?organizationId=${selectedOrgId}`)
+      const data = await response.json()
+      if (response.ok) {
+        const activeProjects = data.projects?.filter((p: Project) => p.status === 'ACTIVE') || []
+        setProjects(activeProjects)
+      }
+    } catch (error) {
+      console.error('Error fetching projects:', error)
+    }
+  }, [selectedOrgId])
 
   useEffect(() => {
     fetchActiveEntry()
+    fetchOrganizations()
   }, [])
+
+  useEffect(() => {
+    if (selectedOrgId) {
+      fetchProjects()
+    }
+  }, [selectedOrgId, fetchProjects])
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -30,16 +115,6 @@ export default function Dashboard() {
 
     return () => clearInterval(timer)
   }, [])
-
-  const fetchActiveEntry = async () => {
-    try {
-      const response = await fetch('/api/time/clock')
-      const data = await response.json()
-      setActiveEntry(data.activeEntry)
-    } catch (error) {
-      console.error('Error fetching active entry:', error)
-    }
-  }
 
   const handleClock = async (action: 'in' | 'out') => {
     setLoading(true)
@@ -51,20 +126,23 @@ export default function Dashboard() {
         },
         body: JSON.stringify({
           action,
-          description: action === 'in' ? description : undefined
+          description: action === 'in' ? description : undefined,
+          projectId: action === 'in' ? selectedProjectId || null : undefined,
+          organizationId: action === 'in' ? selectedOrgId || null : undefined
         }),
       })
 
       const data = await response.json()
 
       if (!response.ok) {
-        alert(data.error)
+        setSnackbar({ show: true, message: data.error || 'Clock operation failed', type: 'error' })
       } else {
         setDescription('')
+        setSelectedProjectId('')
         fetchActiveEntry()
       }
     } catch {
-      alert('An error occurred')
+      setSnackbar({ show: true, message: 'An error occurred', type: 'error' })
     }
     setLoading(false)
   }
@@ -148,6 +226,16 @@ export default function Dashboard() {
                                   <span className="font-medium">Working on:</span> {activeEntry.description}
                                 </p>
                               )}
+                              {activeEntry.project && (
+                                <p className="text-emerald-800">
+                                  <span className="font-medium">Project:</span> {activeEntry.project.name}
+                                </p>
+                              )}
+                              {activeEntry.organization && (
+                                <p className="text-emerald-800">
+                                  <span className="font-medium">Organization:</span> {activeEntry.organization.name}
+                                </p>
+                              )}
                             </div>
                           </div>
                         </div>
@@ -156,7 +244,7 @@ export default function Dashboard() {
                       <button
                         onClick={() => handleClock('out')}
                         disabled={loading}
-                        className="w-full group relative inline-flex items-center justify-center px-8 py-4 text-lg font-semibold text-white transition-all duration-200 bg-gradient-to-r from-red-600 to-rose-600 rounded-2xl hover:from-red-700 hover:to-rose-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 disabled:opacity-50 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 cursor-pointer"
+                        className="w-full group relative inline-flex items-center justify-center px-8 py-4 text-lg font-semibold text-white bg-gradient-to-r from-red-600 to-rose-600 rounded-2xl hover:from-red-700 hover:to-rose-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 disabled:opacity-50 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all duration-200 cursor-pointer"
                       >
                         <svg className="w-6 h-6 mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -166,6 +254,38 @@ export default function Dashboard() {
                     </div>
                   ) : (
                     <div className="space-y-6">
+                      {organizations.length > 1 && (
+                        <div className="space-y-2">
+                          <label className="block text-lg font-semibold text-slate-800">
+                            Organization
+                          </label>
+                          <SearchableSelect
+                            value={selectedOrgId}
+                            onChange={setSelectedOrgId}
+                            options={organizations.map(org => ({ value: org.id, label: org.name }))}
+                            placeholder="Choose an organization..."
+                          />
+                        </div>
+                      )}
+
+                      {selectedOrgId && projects.length > 0 && (
+                        <div className="space-y-2">
+                          <label className="block text-lg font-semibold text-slate-800">
+                            Project
+                          </label>
+                          <p className="text-sm text-slate-600">Optional: Select a project to track time against</p>
+                          <SearchableSelect
+                            value={selectedProjectId}
+                            onChange={setSelectedProjectId}
+                            options={[
+                              { value: '', label: 'No specific project' },
+                              ...projects.map(project => ({ value: project.id, label: project.name }))
+                            ]}
+                            placeholder="Choose a project..."
+                          />
+                        </div>
+                      )}
+
                       <div className="space-y-2">
                         <label htmlFor="description" className="block text-lg font-semibold text-slate-800">
                           What are you working on today?
@@ -184,7 +304,7 @@ export default function Dashboard() {
                       <button
                         onClick={() => handleClock('in')}
                         disabled={loading}
-                        className="w-full group relative inline-flex items-center justify-center px-8 py-4 text-lg font-semibold text-white transition-all duration-200 bg-gradient-to-r from-emerald-600 to-green-600 rounded-2xl hover:from-emerald-700 hover:to-green-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 disabled:opacity-50 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 cursor-pointer"
+                        className="w-full group relative inline-flex items-center justify-center px-8 py-4 text-lg font-semibold text-white bg-gradient-to-r from-emerald-600 to-green-600 rounded-2xl hover:from-emerald-700 hover:to-green-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 disabled:opacity-50 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all duration-200 cursor-pointer"
                       >
                         <svg className="w-6 h-6 mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -206,7 +326,7 @@ export default function Dashboard() {
                 <div className="space-y-4">
                   <button
                     onClick={() => router.push('/timesheet')}
-                    className="w-full group relative p-6 bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-200/50 rounded-2xl hover:from-blue-100 hover:to-indigo-100 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transform hover:-translate-y-1 hover:shadow-lg cursor-pointer"
+                    className="w-full group relative p-6 bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-200/50 rounded-2xl hover:from-blue-100 hover:to-indigo-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transform hover:-translate-y-1 hover:shadow-lg transition-all duration-200 cursor-pointer"
                   >
                     <div className="flex items-center space-x-4">
                       <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center">
@@ -225,8 +345,28 @@ export default function Dashboard() {
                   </button>
                   
                   <button
+                    onClick={() => router.push('/projects')}
+                    className="w-full group relative p-6 bg-gradient-to-br from-orange-50 to-amber-50 border border-orange-200/50 rounded-2xl hover:from-orange-100 hover:to-amber-100 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 transform hover:-translate-y-1 hover:shadow-lg transition-all duration-200 cursor-pointer"
+                  >
+                    <div className="flex items-center space-x-4">
+                      <div className="w-12 h-12 bg-gradient-to-br from-orange-500 to-amber-600 rounded-xl flex items-center justify-center">
+                        <svg className="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 9a2 2 0 00-2 2v2" />
+                        </svg>
+                      </div>
+                      <div className="flex-1 text-left">
+                        <div className="text-lg font-bold text-slate-900 group-hover:text-orange-900 transition-colors">Projects</div>
+                        <div className="text-slate-600 group-hover:text-orange-700 transition-colors">Manage and track project progress</div>
+                      </div>
+                      <svg className="w-5 h-5 text-slate-400 group-hover:text-orange-600 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                      </svg>
+                    </div>
+                  </button>
+                  
+                  <button
                     onClick={() => router.push('/organization')}
-                    className="w-full group relative p-6 bg-gradient-to-br from-purple-50 to-pink-50 border border-purple-200/50 rounded-2xl hover:from-purple-100 hover:to-pink-100 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 transform hover:-translate-y-1 hover:shadow-lg cursor-pointer"
+                    className="w-full group relative p-6 bg-gradient-to-br from-purple-50 to-pink-50 border border-purple-200/50 rounded-2xl hover:from-purple-100 hover:to-pink-100 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 transform hover:-translate-y-1 hover:shadow-lg transition-all duration-200 cursor-pointer"
                   >
                     <div className="flex items-center space-x-4">
                       <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-pink-600 rounded-xl flex items-center justify-center">
@@ -249,6 +389,13 @@ export default function Dashboard() {
           </div>
         </div>
       </div>
+
+      <Snackbar
+        message={snackbar.message}
+        type={snackbar.type}
+        show={snackbar.show}
+        onClose={() => setSnackbar({ ...snackbar, show: false })}
+      />
     </AuthenticatedLayout>
   )
 }

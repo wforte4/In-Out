@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import AuthenticatedLayout from '../../components/AuthenticatedLayout'
+import Snackbar from '../../components/Snackbar'
 
 interface TimeEntry {
   id: string
@@ -18,6 +19,14 @@ interface TimeEntry {
     name: string | null
     email: string
   }
+  project?: {
+    id: string
+    name: string
+  } | null
+  organization?: {
+    id: string
+    name: string
+  } | null
   editor?: {
     name: string | null
     email: string
@@ -36,6 +45,11 @@ function TimesheetContent() {
     clockOut: '',
     description: ''
   })
+  const [snackbar, setSnackbar] = useState<{
+    show: boolean
+    message: string
+    type: 'success' | 'error' | 'info'
+  }>({ show: false, message: '', type: 'success' })
 
   const userId = searchParams.get('userId')
 
@@ -117,18 +131,19 @@ function TimesheetContent() {
       if (response.ok) {
         setEditingEntry(null)
         fetchTimeEntries()
+        setSnackbar({ show: true, message: 'Time entry updated successfully!', type: 'success' })
       } else {
         const data = await response.json()
-        alert(data.error || 'Failed to update entry')
+        setSnackbar({ show: true, message: data.error || 'Failed to update entry', type: 'error' })
       }
     } catch (error) {
       console.error('Error updating entry:', error)
-      alert('Failed to update entry')
+      setSnackbar({ show: true, message: 'Failed to update entry', type: 'error' })
     }
   }
 
   const handleDeleteEntry = async (entryId: string, organizationId: string | null) => {
-    if (!confirm('Are you sure you want to delete this time entry?')) return
+    if (!window.confirm('Are you sure you want to delete this time entry?')) return
 
     try {
       const url = organizationId 
@@ -139,13 +154,14 @@ function TimesheetContent() {
 
       if (response.ok) {
         fetchTimeEntries()
+        setSnackbar({ show: true, message: 'Time entry deleted successfully!', type: 'success' })
       } else {
         const data = await response.json()
-        alert(data.error || 'Failed to delete entry')
+        setSnackbar({ show: true, message: data.error || 'Failed to delete entry', type: 'error' })
       }
     } catch (error) {
       console.error('Error deleting entry:', error)
-      alert('Failed to delete entry')
+      setSnackbar({ show: true, message: 'Failed to delete entry', type: 'error' })
     }
   }
 
@@ -209,7 +225,7 @@ function TimesheetContent() {
                 <p className="text-slate-500 mb-6">Start tracking your time to see entries here</p>
                 <Link
                   href="/dashboard"
-                  className="inline-flex items-center px-6 py-3 text-sm font-semibold text-white bg-gradient-to-r from-purple-600 to-blue-600 rounded-2xl hover:from-purple-700 hover:to-blue-700 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
+                  className="inline-flex items-center px-6 py-3 text-sm font-semibold text-white bg-gradient-to-r from-purple-600 to-blue-600 rounded-2xl hover:from-purple-700 hover:to-blue-700 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all duration-200"
                 >
                   <svg className="w-5 h-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -255,14 +271,32 @@ function TimesheetContent() {
                             )}
                           </div>
                         </div>
-                        {entry.description && (
-                          <div className="bg-slate-100/70 rounded-xl p-3 mt-3">
-                            <p className="text-sm font-medium text-slate-700">
-                              <svg className="w-4 h-4 inline mr-2 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                              </svg>
-                              {entry.description}
-                            </p>
+                        {(entry.description || entry.project) && (
+                          <div className="bg-slate-100/70 rounded-xl p-3 mt-3 space-y-2">
+                            {entry.description && (
+                              <p className="text-sm font-medium text-slate-700">
+                                <svg className="w-4 h-4 inline mr-2 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                </svg>
+                                {entry.description}
+                              </p>
+                            )}
+                            {entry.project && (
+                              <p className="text-sm font-medium text-purple-700">
+                                <svg className="w-4 h-4 inline mr-2 text-purple-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 9a2 2 0 00-2 2v2" />
+                                </svg>
+                                Project: {entry.project.name}
+                              </p>
+                            )}
+                            {entry.organization && (
+                              <p className="text-sm font-medium text-blue-700">
+                                <svg className="w-4 h-4 inline mr-2 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                                </svg>
+                                Organization: {entry.organization.name}
+                              </p>
+                            )}
                           </div>
                         )}
                         {entry.editedBy && entry.editedAt && (
@@ -354,6 +388,13 @@ function TimesheetContent() {
           )}
         </div>
       </div>
+
+      <Snackbar
+        message={snackbar.message}
+        type={snackbar.type}
+        show={snackbar.show}
+        onClose={() => setSnackbar({ ...snackbar, show: false })}
+      />
     </AuthenticatedLayout>
   )
 }

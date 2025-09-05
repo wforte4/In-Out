@@ -4,7 +4,7 @@ import { useEffect } from 'react'
 
 interface SnackbarProps {
   message: string
-  type: 'success' | 'error'
+  type: 'success' | 'error' | 'info'
   show: boolean
   onClose: () => void
   duration?: number
@@ -28,15 +28,19 @@ export default function Snackbar({
 
   if (!show) return null
 
-  const bgColor = type === 'success' ? 'bg-green-500' : 'bg-red-500'
+  const bgColor = type === 'success' ? 'bg-green-500' : type === 'error' ? 'bg-red-500' : 'bg-blue-500'
   const textColor = 'text-white'
   const icon = type === 'success' ? (
     <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
     </svg>
-  ) : (
+  ) : type === 'error' ? (
     <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+    </svg>
+  ) : (
+    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
     </svg>
   )
 
