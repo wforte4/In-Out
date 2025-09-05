@@ -12,7 +12,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const { clockIn, clockOut, description, organizationId } = await request.json()
+    const { clockIn, clockOut, description, organizationId, projectId } = await request.json()
     const { id: entryId } = await params
 
     if (!clockIn) {
@@ -58,6 +58,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
         totalHours,
         description,
         organizationId,
+        projectId,
         editedBy: timeEntry.userId !== session.user.id ? session.user.id : null,
         editedAt: timeEntry.userId !== session.user.id ? new Date() : null
       },
@@ -66,6 +67,18 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
           select: {
             name: true,
             email: true
+          }
+        },
+        project: {
+          select: {
+            id: true,
+            name: true,
+          }
+        },
+        organization: {
+          select: {
+            id: true,
+            name: true,
           }
         },
         editor: {

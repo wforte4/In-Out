@@ -70,6 +70,12 @@ export async function GET(request: NextRequest) {
             name: true,
             email: true
           }
+        },
+        project: {
+          select: {
+            id: true,
+            name: true
+          }
         }
       },
       orderBy: {
@@ -96,6 +102,7 @@ export async function POST(request: NextRequest) {
     const {
       scheduleId,
       userId,
+      projectId,
       title,
       description,
       startTime,
@@ -149,6 +156,7 @@ export async function POST(request: NextRequest) {
       data: {
         scheduleId,
         userId,
+        projectId,
         title,
         description,
         startTime: new Date(startTime),
@@ -169,6 +177,12 @@ export async function POST(request: NextRequest) {
             id: true,
             name: true,
             email: true
+          }
+        },
+        project: {
+          select: {
+            id: true,
+            name: true
           }
         }
       }

@@ -2,6 +2,10 @@
 
 import { useEffect, useState, useCallback } from 'react'
 import AuthenticatedLayout from '../../components/AuthenticatedLayout'
+import SimpleRichTextEditor from '../../components/SimpleRichTextEditor'
+import RichTextDisplay from '../../components/RichTextDisplay'
+import CustomDropdown from '../../components/CustomDropdown'
+import { useSnackbar } from '../../hooks/useSnackbar'
 
 interface User {
   id: string
@@ -18,6 +22,10 @@ interface Shift {
   isRecurring: boolean
   recurringPattern: string | null
   assignedUser: User | null
+  project?: {
+    id: string
+    name: string
+  } | null
 }
 
 interface Schedule {
@@ -42,10 +50,19 @@ interface Organization {
   }>
 }
 
+interface Project {
+  id: string
+  name: string
+  description?: string | null
+  organizationId: string
+}
+
 export default function Schedules() {
+  const snackbar = useSnackbar()
   const [organizations, setOrganizations] = useState<Organization[]>([])
   const [selectedOrgId, setSelectedOrgId] = useState<string>('')
   const [schedules, setSchedules] = useState<Schedule[]>([])
+  const [projects, setProjects] = useState<Project[]>([])
   const [loading, setLoading] = useState(true)
   const [showCreateForm, setShowCreateForm] = useState(false)
   const [showShiftForm, setShowShiftForm] = useState(false)
@@ -60,6 +77,7 @@ export default function Schedules() {
     startTime: '',
     endTime: '',
     userId: '',
+    projectId: '',
     isRecurring: false,
     recurringPattern: '',
     recurringEndDate: ''
@@ -91,6 +109,19 @@ export default function Schedules() {
     }
   }, [selectedOrgId])
 
+  const fetchProjects = useCallback(async () => {
+    if (!selectedOrgId) return
+    try {
+      const response = await fetch(`/api/projects?organizationId=${selectedOrgId}`)
+      const data = await response.json()
+      if (response.ok) {
+        setProjects(data.projects || [])
+      }
+    } catch (error) {
+      console.error('Error fetching projects:', error)
+    }
+  }, [selectedOrgId])
+
   useEffect(() => {
     fetchOrganizations()
   }, [])
@@ -98,8 +129,9 @@ export default function Schedules() {
   useEffect(() => {
     if (selectedOrgId) {
       fetchSchedules()
+      fetchProjects()
     }
-  }, [selectedOrgId, fetchSchedules])
+  }, [selectedOrgId, fetchSchedules, fetchProjects])
 
   const handleCreateSchedule = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -117,9 +149,14 @@ export default function Schedules() {
         setFormData({ name: '', description: '' })
         setShowCreateForm(false)
         fetchSchedules()
+        snackbar.success('Schedule created successfully!')
+      } else {
+        const data = await response.json()
+        snackbar.error(data.error || 'Failed to create schedule')
       }
     } catch (error) {
       console.error('Error creating schedule:', error)
+      snackbar.error('Failed to create schedule')
     }
   }
 
@@ -132,7 +169,8 @@ export default function Schedules() {
         body: JSON.stringify({
           ...shiftFormData,
           scheduleId: selectedScheduleId,
-          userId: shiftFormData.userId || null
+          userId: shiftFormData.userId || null,
+          projectId: shiftFormData.projectId || null
         })
       })
       
@@ -143,15 +181,21 @@ export default function Schedules() {
           startTime: '',
           endTime: '',
           userId: '',
+          projectId: '',
           isRecurring: false,
           recurringPattern: '',
           recurringEndDate: ''
         })
         setShowShiftForm(false)
         fetchSchedules()
+        snackbar.success('Shift created successfully!')
+      } else {
+        const data = await response.json()
+        snackbar.error(data.error || 'Failed to create shift')
       }
     } catch (error) {
       console.error('Error creating shift:', error)
+      snackbar.error('Failed to create shift')
     }
   }
 
@@ -197,20 +241,14 @@ export default function Schedules() {
             <div className="space-y-8">
               {organizations.length > 1 && (
                 <div className="bg-white/70 backdrop-blur-sm rounded-2xl border border-slate-200/50 p-6">
-                  <label className="block text-sm font-semibold text-slate-700 mb-3">
-                    Select Organization
-                  </label>
-                  <select
+                  <CustomDropdown
+                    label="Select Organization"
+                    options={organizations.map(org => ({ value: org.id, label: org.name }))}
                     value={selectedOrgId}
-                    onChange={(e) => setSelectedOrgId(e.target.value)}
-                    className="block w-full px-4 py-3 border border-slate-300 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all duration-200 bg-white/80 text-slate-900"
-                  >
-                    {organizations.map((org) => (
-                      <option key={org.id} value={org.id}>
-                        {org.name}
-                      </option>
-                    ))}
-                  </select>
+                    onChange={setSelectedOrgId}
+                    placeholder="Choose an organization"
+                    className="block w-full"
+                  />
                 </div>
               )}
 
@@ -311,7 +349,14 @@ export default function Schedules() {
                                     <div>
                                       <h4 className="font-semibold text-slate-900">{shift.title}</h4>
                                       {shift.description && (
-                                        <p className="text-sm text-slate-600 mt-1">{shift.description}</p>
+                                        <div className="text-sm text-slate-600 mt-1">
+                                          <RichTextDisplay content={shift.description} />
+                                        </div>
+                                      )}
+                                      {shift.project && (
+                                        <p className="text-xs text-purple-600 mt-1 font-medium">
+                                          Project: {shift.project.name}
+                                        </p>
                                       )}
                                       <div className="flex items-center space-x-4 mt-2 text-sm text-slate-500">
                                         <span>{new Date(shift.startTime).toLocaleString()}</span>
@@ -356,33 +401,43 @@ export default function Schedules() {
                               value={shiftFormData.title}
                               onChange={(e) => setShiftFormData({...shiftFormData, title: e.target.value})}
                               required
-                              className="w-full px-4 py-2 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500"
+                              className="w-full px-4 py-2 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all duration-200 bg-white text-slate-900"
                             />
                           </div>
                           <div>
                             <label className="block text-sm font-medium text-slate-700 mb-2">Description</label>
-                            <textarea
+                            <SimpleRichTextEditor
                               value={shiftFormData.description}
-                              onChange={(e) => setShiftFormData({...shiftFormData, description: e.target.value})}
-                              className="w-full px-4 py-2 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500"
-                              rows={2}
+                              onChange={(value) => setShiftFormData({...shiftFormData, description: value})}
+                              placeholder="Optional details about the shift"
+                              className="mb-2"
                             />
                           </div>
-                          <div>
-                            <label className="block text-sm font-medium text-slate-700 mb-2">Assign to Employee</label>
-                            <select
-                              value={shiftFormData.userId}
-                              onChange={(e) => setShiftFormData({...shiftFormData, userId: e.target.value})}
-                              className="w-full px-4 py-2 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500"
-                            >
-                              <option value="">Unassigned</option>
-                              {selectedOrg?.memberships.map((membership) => (
-                                <option key={membership.user.id} value={membership.user.id}>
-                                  {membership.user.name || membership.user.email}
-                                </option>
-                              ))}
-                            </select>
-                          </div>
+                          <CustomDropdown
+                            label="Project"
+                            options={[
+                              { value: '', label: 'No Project' },
+                              ...projects.map(project => ({ value: project.id, label: project.name }))
+                            ]}
+                            value={shiftFormData.projectId}
+                            onChange={(value) => setShiftFormData({...shiftFormData, projectId: value})}
+                            placeholder="Select a project"
+                            className="w-full"
+                          />
+                          <CustomDropdown
+                            label="Assign to Employee"
+                            options={[
+                              { value: '', label: 'Unassigned' },
+                              ...(selectedOrg?.memberships.map(membership => ({
+                                value: membership.user.id,
+                                label: membership.user.name || membership.user.email
+                              })) || [])
+                            ]}
+                            value={shiftFormData.userId}
+                            onChange={(value) => setShiftFormData({...shiftFormData, userId: value})}
+                            placeholder="Select an employee"
+                            className="w-full"
+                          />
                           <div className="grid grid-cols-2 gap-4">
                             <div>
                               <label className="block text-sm font-medium text-slate-700 mb-2">Start Time</label>
@@ -391,7 +446,7 @@ export default function Schedules() {
                                 value={shiftFormData.startTime}
                                 onChange={(e) => setShiftFormData({...shiftFormData, startTime: e.target.value})}
                                 required
-                                className="w-full px-4 py-2 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500"
+                                className="w-full px-4 py-2 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all duration-200 bg-white text-slate-900"
                               />
                             </div>
                             <div>
@@ -401,7 +456,7 @@ export default function Schedules() {
                                 value={shiftFormData.endTime}
                                 onChange={(e) => setShiftFormData({...shiftFormData, endTime: e.target.value})}
                                 required
-                                className="w-full px-4 py-2 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500"
+                                className="w-full px-4 py-2 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all duration-200 bg-white text-slate-900"
                               />
                             </div>
                           </div>
