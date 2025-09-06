@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import AuthenticatedLayout from '../../components/AuthenticatedLayout'
+import CustomDropdown from '../../components/CustomDropdown'
 
 interface User {
   id: string
@@ -94,20 +95,17 @@ export default function Organization() {
             <div className="space-y-8">
               {organizations.length > 1 && (
                 <div className="bg-white/70 backdrop-blur-sm rounded-2xl border border-slate-200/50 p-6">
-                  <label className="block text-sm font-semibold text-slate-700 mb-3">
-                    Select Organization
-                  </label>
-                  <select
+                  <CustomDropdown
+                    label="Select Organization"
+                    options={organizations.map(org => ({
+                      value: org.id,
+                      label: `${org.name} (${org.userRole})`
+                    }))}
                     value={selectedOrgId}
-                    onChange={(e) => setSelectedOrgId(e.target.value)}
-                    className="block w-full px-4 py-3 border border-slate-300 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all duration-200 bg-white/80 text-slate-900"
-                  >
-                    {organizations.map((org) => (
-                      <option key={org.id} value={org.id}>
-                        {org.name} ({org.userRole})
-                      </option>
-                    ))}
-                  </select>
+                    onChange={setSelectedOrgId}
+                    placeholder="Choose an organization"
+                    className="block w-full"
+                  />
                 </div>
               )}
 

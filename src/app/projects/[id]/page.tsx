@@ -4,7 +4,8 @@ import { useEffect, useState, useCallback } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import AuthenticatedLayout from '../../../components/AuthenticatedLayout'
 import SearchableSelect from '../../../components/SearchableSelect'
-import Snackbar from '../../../components/Snackbar'
+import CustomDropdown from '../../../components/CustomDropdown'
+import { useSnackbar } from '../../../hooks/useSnackbar'
 
 interface ProjectDetails {
   id: string
@@ -85,11 +86,7 @@ export default function ProjectDetail() {
     description: '',
     userId: ''
   })
-  const [snackbar, setSnackbar] = useState<{
-    show: boolean
-    message: string
-    type: 'success' | 'error'
-  }>({ show: false, message: '', type: 'success' })
+  const snackbar = useSnackbar()
 
   const fetchProject = useCallback(async () => {
     try {
@@ -99,10 +96,10 @@ export default function ProjectDetail() {
       if (response.ok) {
         setProject(data.project)
       } else {
-        setSnackbar({ show: true, message: data.error || 'Failed to load project', type: 'error' })
+        snackbar.error(data.error || 'Failed to load project')
       }
     } catch {
-      setSnackbar({ show: true, message: 'Error loading project', type: 'error' })
+      snackbar.error('Error loading project')
     }
     setLoading(false)
   }, [projectId])
@@ -137,7 +134,7 @@ export default function ProjectDetail() {
     e.preventDefault()
     
     if (!newCost.amount) {
-      setSnackbar({ show: true, message: 'Amount is required', type: 'error' })
+      snackbar.error('Amount is required')
       return
     }
 
@@ -156,15 +153,15 @@ export default function ProjectDetail() {
       const data = await response.json()
 
       if (response.ok) {
-        setSnackbar({ show: true, message: 'Cost added successfully!', type: 'success' })
+        snackbar.success('Cost added successfully!')
         setShowCostForm(false)
         setNewCost({ costType: 'HOURLY_RATE', amount: '', description: '', userId: '' })
         fetchProject()
       } else {
-        setSnackbar({ show: true, message: data.error || 'Failed to add cost', type: 'error' })
+        snackbar.error(data.error || 'Failed to add cost')
       }
     } catch {
-      setSnackbar({ show: true, message: 'An error occurred', type: 'error' })
+      snackbar.error('An error occurred')
     }
   }
 
@@ -375,20 +372,19 @@ export default function ProjectDetail() {
               <h3 className="text-lg font-semibold text-slate-900 mb-4">Add Project Cost</h3>
               <form onSubmit={handleAddCost} className="space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-2">
-                      Cost Type *
-                    </label>
-                    <select
-                      value={newCost.costType}
-                      onChange={(e) => setNewCost({ ...newCost, costType: e.target.value as typeof newCost.costType })}
-                      className="w-full px-4 py-3 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 bg-white/80"
-                    >
-                      <option value="HOURLY_RATE">Hourly Rate</option>
-                      <option value="FIXED_COST">Fixed Cost</option>
-                      <option value="EXPENSE">Expense</option>
-                    </select>
-                  </div>
+                  <CustomDropdown
+                    label="Cost Type"
+                    required
+                    options={[
+                      { value: 'HOURLY_RATE', label: 'Hourly Rate' },
+                      { value: 'FIXED_COST', label: 'Fixed Cost' },
+                      { value: 'EXPENSE', label: 'Expense' }
+                    ]}
+                    value={newCost.costType}
+                    onChange={(value) => setNewCost({ ...newCost, costType: value as typeof newCost.costType })}
+                    placeholder="Select cost type"
+                    className="w-full"
+                  />
                   <div>
                     <label className="block text-sm font-medium text-slate-700 mb-2">
                       Amount ($) *
@@ -525,12 +521,6 @@ export default function ProjectDetail() {
         </div>
       </div>
 
-      <Snackbar
-        message={snackbar.message}
-        type={snackbar.type}
-        show={snackbar.show}
-        onClose={() => setSnackbar({ ...snackbar, show: false })}
-      />
     </AuthenticatedLayout>
   )
 }

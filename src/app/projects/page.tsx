@@ -5,7 +5,7 @@ import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import AuthenticatedLayout from '../../components/AuthenticatedLayout'
 import SearchableSelect from '../../components/SearchableSelect'
-import Snackbar from '../../components/Snackbar'
+import { useSnackbar } from '../../hooks/useSnackbar'
 
 interface Project {
   id: string
@@ -46,11 +46,7 @@ export default function Projects() {
     hourlyRate: '',
     fixedCost: ''
   })
-  const [snackbar, setSnackbar] = useState<{
-    show: boolean
-    message: string
-    type: 'success' | 'error'
-  }>({ show: false, message: '', type: 'success' })
+  const snackbar = useSnackbar()
 
   const fetchOrganizations = async () => {
     try {
@@ -104,7 +100,7 @@ export default function Projects() {
     e.preventDefault()
     
     if (!newProject.name.trim()) {
-      setSnackbar({ show: true, message: 'Project name is required', type: 'error' })
+      snackbar.error('Project name is required')
       return
     }
 
@@ -125,15 +121,15 @@ export default function Projects() {
       const data = await response.json()
 
       if (response.ok) {
-        setSnackbar({ show: true, message: 'Project created successfully!', type: 'success' })
+        snackbar.success('Project created successfully!')
         setShowCreateForm(false)
         setNewProject({ name: '', description: '', estimatedHours: '', hourlyRate: '', fixedCost: '' })
         fetchProjects()
       } else {
-        setSnackbar({ show: true, message: data.error || 'Failed to create project', type: 'error' })
+        snackbar.error(data.error || 'Failed to create project')
       }
     } catch {
-      setSnackbar({ show: true, message: 'An error occurred', type: 'error' })
+      snackbar.error('An error occurred')
     }
   }
 
@@ -404,12 +400,6 @@ export default function Projects() {
         </div>
       </div>
 
-      <Snackbar
-        message={snackbar.message}
-        type={snackbar.type}
-        show={snackbar.show}
-        onClose={() => setSnackbar({ ...snackbar, show: false })}
-      />
     </AuthenticatedLayout>
   )
 }

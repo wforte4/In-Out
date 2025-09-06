@@ -11,14 +11,14 @@ export default function Privacy() {
             <h1 className="text-4xl font-bold text-white mb-4">Privacy Policy</h1>
             <p className="text-blue-100 text-lg">Last updated: {new Date().toLocaleDateString()}</p>
           </div>
-          
+
           <div className="px-8 py-12 prose prose-slate max-w-none">
             <section className="mb-8">
               <h2 className="text-2xl font-bold text-slate-900 mb-4">1. Information We Collect</h2>
               <p className="text-slate-700 leading-relaxed mb-4">
                 We collect information you provide directly to us, such as when you create an account, use our services, or contact us.
               </p>
-              
+
               <h3 className="text-xl font-semibold text-slate-800 mb-3">Account Information</h3>
               <ul className="list-disc ml-6 mb-4 text-slate-700">
                 <li>Name and email address</li>
@@ -87,8 +87,8 @@ export default function Privacy() {
             <section className="mb-8">
               <h2 className="text-2xl font-bold text-slate-900 mb-4">5. Data Retention</h2>
               <p className="text-slate-700 leading-relaxed">
-                We retain your personal information for as long as necessary to provide our services and fulfill the purposes described in this policy. 
-                When you delete your account, we will delete your personal information, except where we are required to retain it for legal, 
+                We retain your personal information for as long as necessary to provide our services and fulfill the purposes described in this policy.
+                When you delete your account, we will delete your personal information, except where we are required to retain it for legal,
                 regulatory, or legitimate business purposes.
               </p>
             </section>
@@ -110,8 +110,8 @@ export default function Privacy() {
             <section className="mb-8">
               <h2 className="text-2xl font-bold text-slate-900 mb-4">7. Cookies and Tracking</h2>
               <p className="text-slate-700 leading-relaxed">
-                We use cookies and similar technologies to provide and improve our services. Cookies help us authenticate users, 
-                remember preferences, and analyze usage patterns. You can control cookies through your browser settings, 
+                We use cookies and similar technologies to provide and improve our services. Cookies help us authenticate users,
+                remember preferences, and analyze usage patterns. You can control cookies through your browser settings,
                 though this may affect the functionality of our service.
               </p>
             </section>
@@ -119,7 +119,7 @@ export default function Privacy() {
             <section className="mb-8">
               <h2 className="text-2xl font-bold text-slate-900 mb-4">8. International Data Transfers</h2>
               <p className="text-slate-700 leading-relaxed">
-                Your information may be transferred to and processed in countries other than your own. We ensure appropriate 
+                Your information may be transferred to and processed in countries other than your own. We ensure appropriate
                 safeguards are in place to protect your information in accordance with this privacy policy and applicable laws.
               </p>
             </section>
@@ -127,7 +127,7 @@ export default function Privacy() {
             <section className="mb-8">
               <h2 className="text-2xl font-bold text-slate-900 mb-4">9. Children&apos;s Privacy</h2>
               <p className="text-slate-700 leading-relaxed">
-                Our service is not intended for children under the age of 16. We do not knowingly collect personal information 
+                Our service is not intended for children under the age of 16. We do not knowingly collect personal information
                 from children under 16. If we learn that we have collected such information, we will delete it immediately.
               </p>
             </section>
@@ -135,8 +135,8 @@ export default function Privacy() {
             <section className="mb-8">
               <h2 className="text-2xl font-bold text-slate-900 mb-4">10. Changes to This Policy</h2>
               <p className="text-slate-700 leading-relaxed">
-                We may update this privacy policy from time to time. We will notify you of any material changes by posting 
-                the new privacy policy on this page and updating the &quot;Last updated&quot; date. We encourage you to review this 
+                We may update this privacy policy from time to time. We will notify you of any material changes by posting
+                the new privacy policy on this page and updating the &quot;Last updated&quot; date. We encourage you to review this
                 policy periodically.
               </p>
             </section>
@@ -147,7 +147,7 @@ export default function Privacy() {
                 If you have any questions about this Privacy Policy or our data practices, please contact us at:
               </p>
               <div className="bg-slate-50 rounded-xl p-4 mt-4">
-                <p className="text-slate-700"><strong>Email:</strong> privacy@clockinout.app</p>
+                <p className="text-slate-700"><strong>Email:</strong> info@inandout.work</p>
                 <p className="text-slate-700"><strong>Subject:</strong> Privacy Policy Inquiry</p>
               </div>
             </section>

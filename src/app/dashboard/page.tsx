@@ -4,7 +4,11 @@ import { useEffect, useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import AuthenticatedLayout from '../../components/AuthenticatedLayout'
 import SearchableSelect from '../../components/SearchableSelect'
-import Snackbar from '../../components/Snackbar'
+import Button from '../../components/Button'
+import NavigationCard from '../../components/NavigationCard'
+import TextInput from '../../components/TextInput'
+import ActiveTimeEntryCard from '../../components/ActiveTimeEntryCard'
+import { useSnackbar } from '../../hooks/useSnackbar'
 
 interface TimeEntry {
   id: string
@@ -43,11 +47,7 @@ export default function Dashboard() {
   const [selectedOrgId, setSelectedOrgId] = useState<string>('')
   const [projects, setProjects] = useState<Project[]>([])
   const [selectedProjectId, setSelectedProjectId] = useState<string>('')
-  const [snackbar, setSnackbar] = useState<{
-    show: boolean
-    message: string
-    type: 'success' | 'error' | 'info'
-  }>({ show: false, message: '', type: 'success' })
+  const snackbar = useSnackbar()
 
   const fetchActiveEntry = async () => {
     try {
@@ -135,14 +135,14 @@ export default function Dashboard() {
       const data = await response.json()
 
       if (!response.ok) {
-        setSnackbar({ show: true, message: data.error || 'Clock operation failed', type: 'error' })
+        snackbar.error(data.error || 'Clock operation failed')
       } else {
         setDescription('')
         setSelectedProjectId('')
         fetchActiveEntry()
       }
     } catch {
-      setSnackbar({ show: true, message: 'An error occurred', type: 'error' })
+      snackbar.error('An error occurred')
     }
     setLoading(false)
   }
@@ -156,12 +156,6 @@ export default function Dashboard() {
     })
   }
 
-  const calculateCurrentHours = () => {
-    if (!activeEntry) return 0
-    const clockIn = new Date(activeEntry.clockIn)
-    const now = new Date()
-    return Math.round(((now.getTime() - clockIn.getTime()) / (1000 * 60 * 60)) * 100) / 100
-  }
 
   return (
     <AuthenticatedLayout>
@@ -202,55 +196,23 @@ export default function Dashboard() {
 
                   {activeEntry ? (
                     <div className="space-y-6">
-                      <div className="relative bg-gradient-to-br from-emerald-50 to-green-50 border border-emerald-200/50 rounded-2xl p-6">
-                        <div className="absolute top-4 right-4">
-                          <div className="w-3 h-3 bg-emerald-500 rounded-full animate-pulse"></div>
-                        </div>
-                        <div className="flex items-start space-x-4">
-                          <div className="w-12 h-12 bg-gradient-to-br from-emerald-500 to-green-600 rounded-xl flex items-center justify-center">
-                            <svg className="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                            </svg>
-                          </div>
-                          <div className="flex-1">
-                            <h4 className="text-lg font-bold text-emerald-900 mb-2">Currently Clocked In</h4>
-                            <div className="space-y-1">
-                              <p className="text-emerald-800">
-                                <span className="font-medium">Started:</span> {new Date(activeEntry.clockIn).toLocaleTimeString()}
-                              </p>
-                              <p className="text-emerald-800">
-                                <span className="font-medium">Hours worked:</span> {calculateCurrentHours()}
-                              </p>
-                              {activeEntry.description && (
-                                <p className="text-emerald-800">
-                                  <span className="font-medium">Working on:</span> {activeEntry.description}
-                                </p>
-                              )}
-                              {activeEntry.project && (
-                                <p className="text-emerald-800">
-                                  <span className="font-medium">Project:</span> {activeEntry.project.name}
-                                </p>
-                              )}
-                              {activeEntry.organization && (
-                                <p className="text-emerald-800">
-                                  <span className="font-medium">Organization:</span> {activeEntry.organization.name}
-                                </p>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                      </div>
+                      <ActiveTimeEntryCard activeEntry={activeEntry} />
 
-                      <button
+                      <Button
                         onClick={() => handleClock('out')}
                         disabled={loading}
-                        className="w-full group relative inline-flex items-center justify-center px-8 py-4 text-lg font-semibold text-white bg-gradient-to-r from-red-600 to-rose-600 rounded-2xl hover:from-red-700 hover:to-rose-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 disabled:opacity-50 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all duration-200 cursor-pointer"
+                        variant="danger"
+                        size="lg"
+                        fullWidth
+                        loading={loading}
+                        icon={
+                          <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          </svg>
+                        }
                       >
-                        <svg className="w-6 h-6 mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        </svg>
-                        {loading ? 'Clocking out...' : 'Clock Out'}
-                      </button>
+                        Clock Out
+                      </Button>
                     </div>
                   ) : (
                     <div className="space-y-6">
@@ -286,31 +248,31 @@ export default function Dashboard() {
                         </div>
                       )}
 
-                      <div className="space-y-2">
-                        <label htmlFor="description" className="block text-lg font-semibold text-slate-800">
-                          What are you working on today?
-                        </label>
-                        <p className="text-sm text-slate-600">Optional: Add a description to track your tasks</p>
-                        <input
-                          id="description"
-                          type="text"
-                          value={description}
-                          onChange={(e) => setDescription(e.target.value)}
-                          placeholder="Frontend development, Bug fixes, Client meeting..."
-                          className="block w-full px-4 py-3 text-lg border border-slate-300 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-colors duration-200 bg-white/80"
-                        />
-                      </div>
+                      <TextInput
+                        id="description"
+                        value={description}
+                        onChange={(e) => setDescription(e.target.value)}
+                        label="What are you working on today?"
+                        helperText="Optional: Add a description to track your tasks"
+                        placeholder="Frontend development, Bug fixes, Client meeting..."
+                        size="lg"
+                      />
 
-                      <button
+                      <Button
                         onClick={() => handleClock('in')}
                         disabled={loading}
-                        className="w-full group relative inline-flex items-center justify-center px-8 py-4 text-lg font-semibold text-white bg-gradient-to-r from-emerald-600 to-green-600 rounded-2xl hover:from-emerald-700 hover:to-green-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 disabled:opacity-50 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all duration-200 cursor-pointer"
+                        variant="success"
+                        size="lg"
+                        fullWidth
+                        loading={loading}
+                        icon={
+                          <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          </svg>
+                        }
                       >
-                        <svg className="w-6 h-6 mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        </svg>
-                        {loading ? 'Clocking in...' : 'Clock In'}
-                      </button>
+                        Clock In
+                      </Button>
                     </div>
                   )}
                 </div>
@@ -324,65 +286,41 @@ export default function Dashboard() {
                   Quick Actions
                 </h3>
                 <div className="space-y-4">
-                  <button
+                  <NavigationCard
+                    title="View Timesheet"
+                    description="Review your time entries and total hours"
                     onClick={() => router.push('/timesheet')}
-                    className="w-full group relative p-6 bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-200/50 rounded-2xl hover:from-blue-100 hover:to-indigo-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transform hover:-translate-y-1 hover:shadow-lg transition-all duration-200 cursor-pointer"
-                  >
-                    <div className="flex items-center space-x-4">
-                      <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center">
-                        <svg className="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                        </svg>
-                      </div>
-                      <div className="flex-1 text-left">
-                        <div className="text-lg font-bold text-slate-900 group-hover:text-blue-900 transition-colors">View Timesheet</div>
-                        <div className="text-slate-600 group-hover:text-blue-700 transition-colors">Review your time entries and total hours</div>
-                      </div>
-                      <svg className="w-5 h-5 text-slate-400 group-hover:text-blue-600 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                    colorScheme="blue"
+                    icon={
+                      <svg className="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                       </svg>
-                    </div>
-                  </button>
+                    }
+                  />
                   
-                  <button
+                  <NavigationCard
+                    title="Projects"
+                    description="Manage and track project progress"
                     onClick={() => router.push('/projects')}
-                    className="w-full group relative p-6 bg-gradient-to-br from-orange-50 to-amber-50 border border-orange-200/50 rounded-2xl hover:from-orange-100 hover:to-amber-100 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 transform hover:-translate-y-1 hover:shadow-lg transition-all duration-200 cursor-pointer"
-                  >
-                    <div className="flex items-center space-x-4">
-                      <div className="w-12 h-12 bg-gradient-to-br from-orange-500 to-amber-600 rounded-xl flex items-center justify-center">
-                        <svg className="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 9a2 2 0 00-2 2v2" />
-                        </svg>
-                      </div>
-                      <div className="flex-1 text-left">
-                        <div className="text-lg font-bold text-slate-900 group-hover:text-orange-900 transition-colors">Projects</div>
-                        <div className="text-slate-600 group-hover:text-orange-700 transition-colors">Manage and track project progress</div>
-                      </div>
-                      <svg className="w-5 h-5 text-slate-400 group-hover:text-orange-600 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                    colorScheme="orange"
+                    icon={
+                      <svg className="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 9a2 2 0 00-2 2v2" />
                       </svg>
-                    </div>
-                  </button>
+                    }
+                  />
                   
-                  <button
+                  <NavigationCard
+                    title="Organization"
+                    description="Manage your team and settings"
                     onClick={() => router.push('/organization')}
-                    className="w-full group relative p-6 bg-gradient-to-br from-purple-50 to-pink-50 border border-purple-200/50 rounded-2xl hover:from-purple-100 hover:to-pink-100 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 transform hover:-translate-y-1 hover:shadow-lg transition-all duration-200 cursor-pointer"
-                  >
-                    <div className="flex items-center space-x-4">
-                      <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-pink-600 rounded-xl flex items-center justify-center">
-                        <svg className="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-                        </svg>
-                      </div>
-                      <div className="flex-1 text-left">
-                        <div className="text-lg font-bold text-slate-900 group-hover:text-purple-900 transition-colors">Organization</div>
-                        <div className="text-slate-600 group-hover:text-purple-700 transition-colors">Manage your team and settings</div>
-                      </div>
-                      <svg className="w-5 h-5 text-slate-400 group-hover:text-purple-600 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                    colorScheme="purple"
+                    icon={
+                      <svg className="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
                       </svg>
-                    </div>
-                  </button>
+                    }
+                  />
                 </div>
               </div>
             </div>
@@ -390,12 +328,6 @@ export default function Dashboard() {
         </div>
       </div>
 
-      <Snackbar
-        message={snackbar.message}
-        type={snackbar.type}
-        show={snackbar.show}
-        onClose={() => setSnackbar({ ...snackbar, show: false })}
-      />
     </AuthenticatedLayout>
   )
 }

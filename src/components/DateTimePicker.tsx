@@ -81,6 +81,8 @@ export default function DateTimePicker({
         shouldCloseOnSelect={!showTimeSelect}
         showPopperArrow={false}
         fixedHeight
+        // Allow proper positioning outside modal bounds
+        popperPlacement="bottom-start"
       />
 
       <style jsx global>{`
@@ -89,7 +91,7 @@ export default function DateTimePicker({
         }
 
         .custom-datepicker-popper {
-          z-index: 9999 !important;
+          z-index: 100 !important;
         }
 
         .custom-datepicker-calendar {

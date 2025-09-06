@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import AuthenticatedLayout from '../../components/AuthenticatedLayout'
 import SearchableSelect from '../../components/SearchableSelect'
-import Snackbar from '../../components/Snackbar'
+import { useSnackbar } from '../../hooks/useSnackbar'
 
 interface User {
   id: string
@@ -45,11 +45,7 @@ export default function Invitations() {
     email: '',
     role: 'EMPLOYEE'
   })
-  const [snackbar, setSnackbar] = useState<{
-    show: boolean
-    message: string
-    type: 'success' | 'error' | 'info'
-  }>({ show: false, message: '', type: 'success' })
+  const snackbar = useSnackbar()
 
   const fetchOrganizations = async () => {
     try {
@@ -103,14 +99,14 @@ export default function Invitations() {
         setFormData({ email: '', role: 'EMPLOYEE' })
         setShowInviteForm(false)
         fetchInvitations()
-        setSnackbar({ show: true, message: 'Invitation sent successfully!', type: 'success' })
+        snackbar.success('Invitation sent successfully!')
       } else {
         const errorData = await response.json()
-        setSnackbar({ show: true, message: errorData.error || 'Failed to send invitation', type: 'error' })
+        snackbar.error(errorData.error || 'Failed to send invitation')
       }
     } catch (error) {
       console.error('Error sending invitation:', error)
-      setSnackbar({ show: true, message: 'Failed to send invitation', type: 'error' })
+      snackbar.error('Failed to send invitation')
     }
   }
 
@@ -128,7 +124,7 @@ export default function Invitations() {
     const baseUrl = window.location.origin
     const inviteUrl = `${baseUrl}/auth/signup?invitation=${invitation.token}`
     navigator.clipboard.writeText(inviteUrl)
-    setSnackbar({ show: true, message: 'Invitation link copied to clipboard!', type: 'info' })
+    snackbar.info('Invitation link copied to clipboard!')
   }
 
   if (loading) {
@@ -302,12 +298,6 @@ export default function Invitations() {
         </div>
       </div>
 
-      <Snackbar
-        message={snackbar.message}
-        type={snackbar.type}
-        show={snackbar.show}
-        onClose={() => setSnackbar({ ...snackbar, show: false })}
-      />
     </AuthenticatedLayout>
   )
 }

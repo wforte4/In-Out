@@ -1,14 +1,17 @@
 import { configureStore } from '@reduxjs/toolkit'
 import snackbarReducer from './slices/snackbarSlice'
+import modalReducer from './slices/modalSlice'
 
 export const store = configureStore({
   reducer: {
     snackbar: snackbarReducer,
+    modal: modalReducer,
   },
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({
       serializableCheck: {
-        ignoredActions: ['persist/PERSIST', 'persist/REHYDRATE'],
+        ignoredActions: ['persist/PERSIST', 'persist/REHYDRATE', 'modal/showModal'],
+        ignoredPaths: ['modal.modals']
       },
     }),
 })

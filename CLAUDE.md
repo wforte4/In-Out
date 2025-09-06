@@ -56,3 +56,51 @@ Required in `.env`:
 - `MAILGUN_API_KEY` - Mailgun API key for sending emails
 - `MAILGUN_DOMAIN` - Your Mailgun domain (e.g., inandout.work)
 - `MAILGUN_URL` - Mailgun API URL (default: https://api.mailgun.net)
+
+## Component Usage Guidelines
+
+### Date/Time Input Components
+**CRITICAL**: Always use the existing `DateTimePicker` component for date/time inputs, NOT `TextInput` with `type="datetime-local"`.
+
+✅ **Correct:**
+```jsx
+import DateTimePicker from '../../components/DateTimePicker'
+
+<DateTimePicker
+  selected={formData.startTime}
+  onChange={(date) => setFormData({...formData, startTime: date})}
+  showTimeSelect={true}
+  required
+/>
+```
+
+❌ **Incorrect:**
+```jsx
+// DO NOT USE TextInput for dates/times
+<TextInput
+  type="datetime-local"
+  value={formData.startTime}
+  onChange={(e) => setFormData({...formData, startTime: e.target.value})}
+  required
+/>
+```
+
+### Form Data Types
+When using `DateTimePicker`, ensure form state uses `Date | null` types:
+```jsx
+const [formData, setFormData] = useState({
+  startTime: null as Date | null,  // ✅ Correct
+  endTime: null as Date | null     // ✅ Correct
+  // NOT: startTime: ''            // ❌ Wrong for DateTimePicker
+})
+```
+
+### API Submission
+Convert Date objects to ISO strings when submitting to API:
+```jsx
+body: JSON.stringify({
+  ...formData,
+  startTime: formData.startTime?.toISOString(),
+  endTime: formData.endTime?.toISOString()
+})
+```

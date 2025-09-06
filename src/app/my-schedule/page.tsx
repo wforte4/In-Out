@@ -2,6 +2,14 @@
 
 import { useEffect, useState, useCallback } from 'react'
 import AuthenticatedLayout from '../../components/AuthenticatedLayout'
+import CustomDropdown from '../../components/CustomDropdown'
+import ShiftCard from '../../components/ShiftCard'
+import EmptyState from '../../components/EmptyState'
+import LoadingState from '../../components/LoadingState'
+import SectionCard from '../../components/SectionCard'
+import Button from '../../components/Button'
+import AddShiftModal from '../../components/modals/AddShiftModal'
+import { useModal } from '../../hooks/useModal'
 
 interface User {
   id: string
@@ -26,16 +34,32 @@ interface Shift {
   assignedUser: User | null
 }
 
+interface Project {
+  id: string
+  name: string
+  description?: string | null
+  organizationId: string
+}
+
 interface Organization {
   id: string
   name: string
   userRole: string
+  isAdmin: boolean
+  memberships: Array<{
+    id: string
+    role: string
+    user: User
+  }>
 }
 
 export default function MySchedule() {
+  const modal = useModal()
   const [organizations, setOrganizations] = useState<Organization[]>([])
   const [selectedOrgId, setSelectedOrgId] = useState<string>('')
   const [shifts, setShifts] = useState<Shift[]>([])
+  const [projects, setProjects] = useState<Project[]>([])
+  const [, setDefaultScheduleId] = useState<string>('')
   const [loading, setLoading] = useState(true)
 
   const fetchOrganizations = async () => {
@@ -50,6 +74,52 @@ export default function MySchedule() {
       console.error('Error fetching organizations:', error)
     } finally {
       setLoading(false)
+    }
+  }
+
+  const fetchProjects = useCallback(async () => {
+    if (!selectedOrgId) return
+    try {
+      const response = await fetch(`/api/projects?organizationId=${selectedOrgId}`)
+      const data = await response.json()
+      if (response.ok) {
+        setProjects(data.projects || [])
+      }
+    } catch (error) {
+      console.error('Error fetching projects:', error)
+    }
+  }, [selectedOrgId])
+
+  const getOrCreateDefaultSchedule = async () => {
+    try {
+      // First try to get existing schedules
+      const response = await fetch(`/api/schedules?organizationId=${selectedOrgId}`)
+      const data = await response.json()
+      
+      if (data.schedules && data.schedules.length > 0) {
+        return data.schedules[0].id
+      }
+      
+      // Create a default schedule if none exists
+      const createResponse = await fetch('/api/schedules', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: 'Default Schedule',
+          description: 'Automatically created schedule',
+          organizationId: selectedOrgId
+        })
+      })
+      
+      if (createResponse.ok) {
+        const createData = await createResponse.json()
+        return createData.schedule.id
+      }
+      
+      return null
+    } catch (error) {
+      console.error('Error getting/creating schedule:', error)
+      return null
     }
   }
 
@@ -70,8 +140,32 @@ export default function MySchedule() {
   useEffect(() => {
     if (selectedOrgId) {
       fetchMyShifts()
+      fetchProjects()
     }
-  }, [selectedOrgId, fetchMyShifts])
+  }, [selectedOrgId, fetchMyShifts, fetchProjects])
+
+  const handleAddShift = async () => {
+    const scheduleId = await getOrCreateDefaultSchedule()
+    if (!scheduleId) {
+      return // Error already handled in getOrCreateDefaultSchedule
+    }
+    
+    setDefaultScheduleId(scheduleId)
+    
+    modal.show(
+      'add-shift',
+      AddShiftModal,
+      {
+        selectedOrg: organizations.find(org => org.id === selectedOrgId),
+        projects,
+        scheduleId,
+        onShiftCreated: fetchMyShifts
+      },
+      {
+        size: 'lg'
+      }
+    )
+  }
 
   const getUpcomingShifts = () => {
     const now = new Date()
@@ -83,7 +177,7 @@ export default function MySchedule() {
     const today = new Date()
     const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate())
     const endOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1)
-    
+
     return shifts.filter(shift => {
       const shiftStart = new Date(shift.startTime)
       return shiftStart >= startOfDay && shiftStart < endOfDay
@@ -93,14 +187,7 @@ export default function MySchedule() {
   if (loading) {
     return (
       <AuthenticatedLayout>
-        <div className="max-w-7xl mx-auto py-8 sm:px-6 lg:px-8">
-          <div className="px-4 py-6 sm:px-0 flex items-center justify-center">
-            <div className="flex items-center space-x-3">
-              <div className="w-8 h-8 bg-gradient-to-br from-purple-600 to-blue-600 rounded-lg animate-pulse"></div>
-              <span className="text-slate-600 font-medium">Loading schedule...</span>
-            </div>
-          </div>
-        </div>
+        <LoadingState message="Loading schedule..." />
       </AuthenticatedLayout>
     )
   }
@@ -119,117 +206,102 @@ export default function MySchedule() {
           </div>
 
           {organizations.length === 0 ? (
-            <div className="bg-white/70 backdrop-blur-sm shadow-xl rounded-3xl border border-slate-200/50 overflow-hidden">
-              <div className="text-center py-16">
-                <div className="w-16 h-16 bg-gradient-to-br from-slate-400 to-slate-600 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                  <svg className="w-8 h-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3a4 4 0 118 0v4m-4 8l-2-2m6 0l-2 2m-2-4v8" />
-                  </svg>
-                </div>
-                <p className="text-xl font-semibold text-slate-600 mb-4">No organizations found</p>
-                <p className="text-slate-500">You&apos;re not part of any organizations yet</p>
-              </div>
-            </div>
+            <EmptyState
+              title="No organizations found"
+              message="You're not part of any organizations yet"
+              iconColorScheme="slate"
+              icon={
+                <svg className="w-8 h-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3a4 4 0 118 0v4m-4 8l-2-2m6 0l-2 2m-2-4v8" />
+                </svg>
+              }
+            />
           ) : (
             <div className="space-y-8">
               {organizations.length > 1 && (
-                <div className="bg-white/70 backdrop-blur-sm rounded-2xl border border-slate-200/50 p-6">
-                  <label className="block text-sm font-semibold text-slate-700 mb-3">
-                    Select Organization
-                  </label>
-                  <select
+                <SectionCard
+                  title="Organization Selection"
+                  description="Choose which organization's schedule to view"
+                  iconColorScheme="blue"
+                  icon={
+                    <svg className="w-8 h-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                    </svg>
+                  }
+                >
+                  <CustomDropdown
+                    label="Select Organization"
+                    options={organizations.map(org => ({
+                      value: org.id,
+                      label: `${org.name} (${org.userRole})`
+                    }))}
                     value={selectedOrgId}
-                    onChange={(e) => setSelectedOrgId(e.target.value)}
-                    className="block w-full px-4 py-3 border border-slate-300 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all duration-200 bg-white/80 text-slate-900"
-                  >
-                    {organizations.map((org) => (
-                      <option key={org.id} value={org.id}>
-                        {org.name} ({org.userRole})
-                      </option>
-                    ))}
-                  </select>
-                </div>
+                    onChange={setSelectedOrgId}
+                    placeholder="Choose an organization"
+                    className="block w-full"
+                  />
+                </SectionCard>
               )}
 
               {selectedOrg && (
                 <div className="space-y-6">
-                  <div className="bg-white/70 backdrop-blur-sm shadow-xl rounded-3xl border border-slate-200/50 overflow-hidden">
-                    <div className="px-8 py-6 border-b border-slate-200/50">
-                      <h2 className="text-xl font-bold text-slate-900">Today&apos;s Shifts</h2>
+                  {/* Add Shift Button */}
+                  {selectedOrg.isAdmin && (
+                    <div className="flex justify-end">
+                      <Button
+                        onClick={handleAddShift}
+                        variant="success"
+                        icon={
+                          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                          </svg>
+                        }
+                      >
+                        Add Shift
+                      </Button>
                     </div>
-                    <div className="px-8 py-6">
-                      {todayShifts.length === 0 ? (
-                        <p className="text-slate-500 text-center py-8">No shifts scheduled for today</p>
-                      ) : (
-                        <div className="space-y-4">
-                          {todayShifts.map((shift) => (
-                            <div key={shift.id} className="bg-gradient-to-r from-green-50 to-green-100/50 rounded-2xl p-6 border border-green-200/50">
-                              <div className="flex items-center justify-between">
-                                <div>
-                                  <h3 className="text-lg font-semibold text-slate-900">{shift.title}</h3>
-                                  {shift.description && (
-                                    <p className="text-slate-600 mt-1">{shift.description}</p>
-                                  )}
-                                  <p className="text-sm text-slate-500 mt-2">Schedule: {shift.schedule.name}</p>
-                                </div>
-                                <div className="text-right">
-                                  <div className="text-lg font-bold text-green-700">
-                                    {new Date(shift.startTime).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})} - {new Date(shift.endTime).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
-                                  </div>
-                                  <div className="text-sm text-slate-500 mt-1">
-                                    Duration: {Math.round((new Date(shift.endTime).getTime() - new Date(shift.startTime).getTime()) / (1000 * 60 * 60) * 10) / 10}h
-                                  </div>
-                                </div>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  </div>
+                  )}
+                  <SectionCard
+                    title="Today's Shifts"
+                    description={`${todayShifts.length} shift${todayShifts.length !== 1 ? 's' : ''} scheduled for today`}
+                    iconColorScheme="green"
+                    icon={
+                      <svg className="w-8 h-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                    }
+                  >
+                    {todayShifts.length === 0 ? (
+                      <p className="text-slate-500 text-center py-8">No shifts scheduled for today</p>
+                    ) : (
+                      <div className="space-y-4">
+                        {todayShifts.map((shift) => (
+                          <ShiftCard key={shift.id} shift={shift} variant="today" />
+                        ))}
+                      </div>
+                    )}
+                  </SectionCard>
 
-                  <div className="bg-white/70 backdrop-blur-sm shadow-xl rounded-3xl border border-slate-200/50 overflow-hidden">
-                    <div className="px-8 py-6 border-b border-slate-200/50">
-                      <h2 className="text-xl font-bold text-slate-900">Upcoming Shifts</h2>
-                    </div>
-                    <div className="px-8 py-6">
-                      {upcomingShifts.length === 0 ? (
-                        <p className="text-slate-500 text-center py-8">No upcoming shifts scheduled</p>
-                      ) : (
-                        <div className="space-y-4">
-                          {upcomingShifts.slice(0, 10).map((shift) => (
-                            <div key={shift.id} className="bg-gradient-to-r from-slate-50 to-slate-100/50 rounded-2xl p-6 border border-slate-200/50">
-                              <div className="flex items-center justify-between">
-                                <div>
-                                  <h3 className="text-lg font-semibold text-slate-900">{shift.title}</h3>
-                                  {shift.description && (
-                                    <p className="text-slate-600 mt-1">{shift.description}</p>
-                                  )}
-                                  <p className="text-sm text-slate-500 mt-2">Schedule: {shift.schedule.name}</p>
-                                  {shift.isRecurring && (
-                                    <span className="inline-block px-2 py-1 bg-blue-100 text-blue-800 rounded-lg text-xs font-semibold mt-2">
-                                      Recurring: {shift.recurringPattern}
-                                    </span>
-                                  )}
-                                </div>
-                                <div className="text-right">
-                                  <div className="text-lg font-bold text-slate-700">
-                                    {new Date(shift.startTime).toLocaleDateString()}
-                                  </div>
-                                  <div className="text-sm text-slate-600">
-                                    {new Date(shift.startTime).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})} - {new Date(shift.endTime).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
-                                  </div>
-                                  <div className="text-sm text-slate-500 mt-1">
-                                    Duration: {Math.round((new Date(shift.endTime).getTime() - new Date(shift.startTime).getTime()) / (1000 * 60 * 60) * 10) / 10}h
-                                  </div>
-                                </div>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  </div>
+                  <SectionCard
+                    title="Upcoming Shifts"
+                    description={`${upcomingShifts.length} upcoming shift${upcomingShifts.length !== 1 ? 's' : ''} scheduled`}
+                    iconColorScheme="purple"
+                    icon={
+                      <svg className="w-8 h-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3a4 4 0 118 0v4m-4 8l-2-2m6 0l-2 2m-2-4v8" />
+                      </svg>
+                    }
+                  >
+                    {upcomingShifts.length === 0 ? (
+                      <p className="text-slate-500 text-center py-8">No upcoming shifts scheduled</p>
+                    ) : (
+                      <div className="space-y-4">
+                        {upcomingShifts.slice(0, 10).map((shift) => (
+                          <ShiftCard key={shift.id} shift={shift} variant="upcoming" />
+                        ))}
+                      </div>
+                    )}
+                  </SectionCard>
                 </div>
               )}
             </div>
