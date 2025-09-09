@@ -78,7 +78,7 @@ export default function ProjectDetail() {
   const params = useParams()
   const router = useRouter()
   const projectId = params.id as string
-  
+
   const [project, setProject] = useState<ProjectDetails | null>(null)
   const [loading, setLoading] = useState(true)
   const [hasAdminAccess, setHasAdminAccess] = useState(false)
@@ -108,6 +108,7 @@ export default function ProjectDetail() {
       const response = await fetch('/api/organization/members')
       const data = await response.json()
       if (response.ok && data.organizations) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const hasAdmin = data.organizations.some((org: any) => org.isAdmin)
         setHasAdminAccess(hasAdmin)
       }
@@ -121,7 +122,7 @@ export default function ProjectDetail() {
     try {
       const response = await fetch(`/api/projects/${projectId}`)
       const data = await response.json()
-      
+
       if (response.ok) {
         setProject(data.project)
         setIsAdmin(data.isAdmin || false)
@@ -148,7 +149,7 @@ export default function ProjectDetail() {
 
   const fetchOrgMembers = useCallback(async () => {
     if (!project) return
-    
+
     try {
       const response = await fetch(`/api/organization/members?organizationId=${project.organization.id}`)
       const data = await response.json()
@@ -184,7 +185,7 @@ export default function ProjectDetail() {
 
   const handleEditProject = async (e: React.FormEvent) => {
     e.preventDefault()
-    
+
     if (!editProject.name.trim()) {
       snackbar.error('Project name is required')
       return
@@ -220,7 +221,7 @@ export default function ProjectDetail() {
 
   const handleAddCost = async (e: React.FormEvent) => {
     e.preventDefault()
-    
+
     if (!newCost.amount) {
       snackbar.error('Amount is required')
       return
@@ -260,7 +261,7 @@ export default function ProjectDetail() {
       ON_HOLD: 'bg-yellow-100 text-yellow-800 border-yellow-200',
       CANCELLED: 'bg-red-100 text-red-800 border-red-200',
     }
-    
+
     return (
       <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium border ${statusStyles[status]}`}>
         {status.replace('_', ' ')}
@@ -279,14 +280,14 @@ export default function ProjectDetail() {
 
   const calculateProjectRevenue = () => {
     if (!project) return 0
-    
+
     let revenue = 0
-    
+
     // Add fixed costs
     revenue += project.projectCosts
       .filter(cost => cost.costType === 'FIXED_COST')
       .reduce((sum, cost) => sum + cost.amount, 0)
-    
+
     // Add hourly revenue
     const hourlyRates = new Map()
     project.projectCosts
@@ -296,7 +297,7 @@ export default function ProjectDetail() {
           hourlyRates.set(cost.user.email, cost.amount)
         }
       })
-    
+
     // Calculate revenue from time entries
     project.timeEntries.forEach(entry => {
       if (entry.totalHours && hourlyRates.has(entry.user.email)) {
@@ -305,7 +306,7 @@ export default function ProjectDetail() {
         revenue += entry.totalHours * project.hourlyRate
       }
     })
-    
+
     return revenue
   }
 
@@ -563,7 +564,7 @@ export default function ProjectDetail() {
                     />
                   </div>
                 </div>
-                
+
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-2">
                     Description
@@ -680,16 +681,16 @@ export default function ProjectDetail() {
                       onChange={(value) => setNewCost({ ...newCost, userId: value as string })}
                       options={[
                         { value: '', label: 'All team members' },
-                        ...orgMembers.map(member => ({ 
-                          value: member.user.id, 
-                          label: member.user.name || member.user.email 
+                        ...orgMembers.map(member => ({
+                          value: member.user.id,
+                          label: member.user.name || member.user.email
                         }))
                       ]}
                       placeholder="Choose team member..."
                     />
                   </div>
                 </div>
-                
+
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-2">
                     Description

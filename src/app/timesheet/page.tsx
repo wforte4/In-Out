@@ -148,7 +148,7 @@ function TimesheetContent() {
       const url = userId ? `/api/time/entries?userId=${userId}` : '/api/time/entries'
       const response = await fetch(url)
       const data = await response.json()
-      
+
       if (response.ok) {
         setTimeEntries(data.timeEntries || [])
         if (userId && data.timeEntries?.[0]?.user) {
@@ -168,12 +168,12 @@ function TimesheetContent() {
   const fetchShifts = useCallback(async () => {
     if (!selectedOrgId) return
     try {
-      const url = userId 
+      const url = userId
         ? `/api/shifts?organizationId=${selectedOrgId}&userId=${userId}`
         : `/api/shifts?organizationId=${selectedOrgId}`
       const response = await fetch(url)
       const data = await response.json()
-      
+
       if (response.ok) {
         setShifts(data.shifts || [])
       } else {
@@ -218,19 +218,13 @@ function TimesheetContent() {
     return Math.max(0, (end.getTime() - start.getTime()) / (1000 * 60 * 60))
   }
 
-  const getTotalHours = () => {
-    return timeEntries.reduce((total, entry) => {
-      return total + (entry.totalHours || 0)
-    }, 0)
-  }
-
   const getHoursForPeriod = (period: 'today' | 'week' | 'month') => {
     const now = new Date()
     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
-    
+
     let startDate: Date
     let endDate: Date
-    
+
     if (period === 'today') {
       startDate = today
       endDate = today
@@ -239,7 +233,7 @@ function TimesheetContent() {
       const dayOfWeek = now.getDay() // 0 = Sunday, 1 = Monday, etc.
       startDate = new Date(today)
       startDate.setDate(today.getDate() - dayOfWeek) // Go back to Sunday
-      
+
       // End of week (Saturday)
       endDate = new Date(startDate)
       endDate.setDate(startDate.getDate() + 6)
@@ -247,7 +241,7 @@ function TimesheetContent() {
       startDate = new Date(today.getFullYear(), today.getMonth(), 1) // Start of current month
       endDate = today
     }
-    
+
     return timeEntries.filter(entry => {
       const entryDate = new Date(entry.clockIn)
       const entryDay = new Date(entryDate.getFullYear(), entryDate.getMonth(), entryDate.getDate())
@@ -260,8 +254,8 @@ function TimesheetContent() {
   // Calendar utility functions
   const isSameDay = (date1: Date, date2: Date) => {
     return date1.getFullYear() === date2.getFullYear() &&
-           date1.getMonth() === date2.getMonth() &&
-           date1.getDate() === date2.getDate()
+      date1.getMonth() === date2.getMonth() &&
+      date1.getDate() === date2.getDate()
   }
 
   const isShiftOnDay = (shift: Shift, day: Date) => {
@@ -287,22 +281,22 @@ function TimesheetContent() {
   const getCalendarDays = (): CalendarDay[] => {
     const days: CalendarDay[] = []
     const today = new Date()
-    
+
     if (viewMode === 'month') {
       const monthStart = getMonthStart(currentDate)
       const monthEnd = getMonthEnd(currentDate)
       const calendarStart = getWeekStart(monthStart)
-      
+
       const current = new Date(calendarStart)
       while (current <= monthEnd || current.getDay() !== 0) {
-        const dayEntries = timeEntries.filter(entry => 
+        const dayEntries = timeEntries.filter(entry =>
           isSameDay(new Date(entry.clockIn), current)
         )
-        const dayShifts = shifts.filter(shift => 
+        const dayShifts = shifts.filter(shift =>
           isShiftOnDay(shift, current)
         )
         const totalHours = dayEntries.reduce((sum, entry) => sum + (entry.totalHours || 0), 0)
-        
+
         days.push({
           date: new Date(current),
           entries: dayEntries,
@@ -311,7 +305,7 @@ function TimesheetContent() {
           isToday: isSameDay(current, today),
           isCurrentMonth: current.getMonth() === currentDate.getMonth()
         })
-        
+
         current.setDate(current.getDate() + 1)
       }
     } else if (viewMode === 'week') {
@@ -319,15 +313,15 @@ function TimesheetContent() {
       for (let i = 0; i < 7; i++) {
         const current = new Date(weekStart)
         current.setDate(weekStart.getDate() + i)
-        
-        const dayEntries = timeEntries.filter(entry => 
+
+        const dayEntries = timeEntries.filter(entry =>
           isSameDay(new Date(entry.clockIn), current)
         )
-        const dayShifts = shifts.filter(shift => 
+        const dayShifts = shifts.filter(shift =>
           isShiftOnDay(shift, current)
         )
         const totalHours = dayEntries.reduce((sum, entry) => sum + (entry.totalHours || 0), 0)
-        
+
         days.push({
           date: new Date(current),
           entries: dayEntries,
@@ -338,14 +332,14 @@ function TimesheetContent() {
         })
       }
     } else {
-      const dayEntries = timeEntries.filter(entry => 
+      const dayEntries = timeEntries.filter(entry =>
         isSameDay(new Date(entry.clockIn), currentDate)
       )
-      const dayShifts = shifts.filter(shift => 
+      const dayShifts = shifts.filter(shift =>
         isShiftOnDay(shift, currentDate)
       )
       const totalHours = dayEntries.reduce((sum, entry) => sum + (entry.totalHours || 0), 0)
-      
+
       days.push({
         date: new Date(currentDate),
         entries: dayEntries,
@@ -355,7 +349,7 @@ function TimesheetContent() {
         isCurrentMonth: true
       })
     }
-    
+
     return days
   }
 
@@ -557,11 +551,10 @@ function TimesheetContent() {
                   <button
                     key={mode}
                     onClick={() => setViewMode(mode)}
-                    className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors duration-200 ${
-                      viewMode === mode
+                    className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors duration-200 ${viewMode === mode
                         ? 'bg-white text-slate-900 shadow-sm'
                         : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200'
-                    }`}
+                      }`}
                   >
                     {mode.charAt(0).toUpperCase() + mode.slice(1)}
                   </button>
@@ -618,7 +611,7 @@ function TimesheetContent() {
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
                     <h3 className="text-xl font-bold text-slate-900">
-                      {calendarDays[0]?.totalHours > 0 
+                      {calendarDays[0]?.totalHours > 0
                         ? `Total: ${calendarDays[0].totalHours.toFixed(2)} hours logged`
                         : 'No time logged'
                       }
@@ -643,7 +636,7 @@ function TimesheetContent() {
                       </Button>
                     </div>
                   </div>
-                  
+
                   {(calendarDays[0]?.entries.length === 0 && calendarDays[0]?.shifts.length === 0) ? (
                     <div className="text-center py-12 text-slate-500">
                       No time entries or shifts for this day
@@ -671,7 +664,7 @@ function TimesheetContent() {
                           </div>
                         </div>
                       )}
-                      
+
                       {/* Scheduled Shifts Section */}
                       {calendarDays[0]?.shifts.length > 0 && (
                         <div>

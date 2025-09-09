@@ -48,10 +48,10 @@ export default function ForgotPassword() {
           <div className="px-8 py-10">
             <div className="text-center mb-8">
               <div className="inline-flex items-center justify-center mb-4">
-                <Image 
-                  src="/logo_simple.png" 
-                  alt="In&Out Logo" 
-                  width={64} 
+                <Image
+                  src="/logo_simple.png"
+                  alt="In&Out Logo"
+                  width={64}
                   height={64}
                   className="object-contain"
                 />
@@ -60,7 +60,7 @@ export default function ForgotPassword() {
                 Forgot Password?
               </h2>
               <p className="text-slate-600">
-                Enter your email address and we'll send you a link to reset your password
+                Enter your email address and we&apos;ll send you a link to reset your password
               </p>
             </div>
 
@@ -124,8 +124,8 @@ export default function ForgotPassword() {
                 </button>
 
                 <div className="text-center pt-4">
-                  <Link 
-                    href="/auth/signin" 
+                  <Link
+                    href="/auth/signin"
                     className="inline-flex items-center text-purple-600 hover:text-purple-700 font-medium transition-colors duration-200"
                   >
                     <ArrowLeftIcon className="w-4 h-4 mr-1" />
@@ -144,9 +144,9 @@ export default function ForgotPassword() {
                     <p className="text-green-600 text-sm text-center">{message}</p>
                   </div>
                 </div>
-                
-                <Link 
-                  href="/auth/signin" 
+
+                <Link
+                  href="/auth/signin"
                   className="inline-flex items-center text-purple-600 hover:text-purple-700 font-medium transition-colors duration-200"
                 >
                   <ArrowLeftIcon className="w-4 h-4 mr-1" />

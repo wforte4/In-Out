@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useSession } from 'next-auth/react'
 import { motion } from 'framer-motion'
-import { 
+import {
   ExclamationTriangleIcon,
   UsersIcon,
   ClockIcon,
@@ -132,6 +132,7 @@ export default function AdminDashboard() {
     if (selectedOrgId) {
       fetchDashboardMetrics()
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedOrgId, timeRange])
 
   if (!session) {
@@ -163,7 +164,7 @@ export default function AdminDashboard() {
       <div className="max-w-7xl mx-auto py-8 sm:px-6 lg:px-8">
         <div className="px-4 py-6 sm:px-0">
           {/* Header */}
-          <motion.div 
+          <motion.div
             className="flex items-center justify-between mb-8"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -171,7 +172,7 @@ export default function AdminDashboard() {
           >
             <div>
               <h1 className="text-3xl font-bold text-slate-900">Admin Dashboard</h1>
-              <p className="text-slate-600 mt-2">Monitor your organization's performance and activity</p>
+              <p className="text-slate-600 mt-2">Monitor your organization&apos;s performance and activity</p>
               {metrics?.dateRange && (
                 <p className="text-slate-500 text-sm mt-1">
                   Data from {new Date(metrics.dateRange.startDate).toLocaleDateString()} to {new Date(metrics.dateRange.endDate).toLocaleDateString()}
@@ -185,11 +186,10 @@ export default function AdminDashboard() {
                   <button
                     key={range}
                     onClick={() => setTimeRange(range)}
-                    className={`px-3 py-1.5 text-sm font-medium rounded-lg transition-colors duration-200 ${
-                      timeRange === range
+                    className={`px-3 py-1.5 text-sm font-medium rounded-lg transition-colors duration-200 ${timeRange === range
                         ? 'bg-purple-600 text-white shadow-sm'
                         : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-                    }`}
+                      }`}
                   >
                     {range.charAt(0).toUpperCase() + range.slice(1)}
                   </button>
@@ -200,7 +200,7 @@ export default function AdminDashboard() {
 
           {/* Organization Selector */}
           {organizations.length > 1 && (
-            <motion.div 
+            <motion.div
               className="bg-white/70 backdrop-blur-sm shadow-lg rounded-2xl border border-slate-200/50 p-6 mb-8"
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
@@ -210,9 +210,9 @@ export default function AdminDashboard() {
               <SearchableSelect
                 value={selectedOrgId}
                 onChange={setSelectedOrgId}
-                options={organizations.map(org => ({ 
-                  value: org.id, 
-                  label: `${org.name} (${org.memberCount} members)` 
+                options={organizations.map(org => ({
+                  value: org.id,
+                  label: `${org.name} (${org.memberCount} members)`
                 }))}
                 placeholder="Choose an organization..."
               />
@@ -229,7 +229,7 @@ export default function AdminDashboard() {
           ) : metrics && selectedOrgId ? (
             <div className="space-y-8">
               {/* Key Metrics Cards */}
-              <motion.div 
+              <motion.div
                 className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6"
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -283,7 +283,7 @@ export default function AdminDashboard() {
               {/* Charts and Analytics Row */}
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                 {/* Weekly Activity Chart */}
-                <motion.div 
+                <motion.div
                   className="bg-white/70 backdrop-blur-sm shadow-xl rounded-2xl border border-slate-200/50 p-6"
                   initial={{ opacity: 0, x: -20 }}
                   animate={{ opacity: 1, x: 0 }}
@@ -296,7 +296,7 @@ export default function AdminDashboard() {
                         <span className="text-sm font-medium text-slate-700 w-16">{day.day}</span>
                         <div className="flex-1 mx-4">
                           <div className="bg-slate-200 rounded-full h-2">
-                            <motion.div 
+                            <motion.div
                               className="bg-gradient-to-r from-purple-500 to-blue-500 h-2 rounded-full"
                               initial={{ width: 0 }}
                               animate={{ width: `${Math.min((day.hours / Math.max(...metrics.weeklyActivity.map(d => d.hours))) * 100, 100)}%` }}
@@ -311,7 +311,7 @@ export default function AdminDashboard() {
                 </motion.div>
 
                 {/* Top Performers */}
-                <motion.div 
+                <motion.div
                   className="bg-white/70 backdrop-blur-sm shadow-xl rounded-2xl border border-slate-200/50 p-6"
                   initial={{ opacity: 0, x: 20 }}
                   animate={{ opacity: 1, x: 0 }}
@@ -321,9 +321,8 @@ export default function AdminDashboard() {
                   <div className="space-y-3">
                     {metrics.topPerformers.slice(0, 5).map((performer, index) => (
                       <div key={performer.userId} className="flex items-center space-x-3">
-                        <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white text-sm font-bold ${
-                          index === 0 ? 'bg-yellow-500' : index === 1 ? 'bg-gray-400' : index === 2 ? 'bg-orange-600' : 'bg-slate-400'
-                        }`}>
+                        <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white text-sm font-bold ${index === 0 ? 'bg-yellow-500' : index === 1 ? 'bg-gray-400' : index === 2 ? 'bg-orange-600' : 'bg-slate-400'
+                          }`}>
                           {index + 1}
                         </div>
                         <div className="flex-1">
@@ -339,7 +338,7 @@ export default function AdminDashboard() {
               {/* Project Stats & Recent Activity */}
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                 {/* Project Performance */}
-                <motion.div 
+                <motion.div
                   className="lg:col-span-2 bg-white/70 backdrop-blur-sm shadow-xl rounded-2xl border border-slate-200/50 p-6"
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
@@ -365,12 +364,11 @@ export default function AdminDashboard() {
                             <td className="text-right py-2 text-slate-800 font-semibold">${project.cost.toFixed(0)}</td>
                             <td className="text-right py-2 text-slate-800">{project.contributors}</td>
                             <td className="text-right py-2">
-                              <span className={`inline-flex px-2 py-1 rounded-full text-xs font-medium ${
-                                project.completion >= 100 ? 'bg-green-100 text-green-800' :
-                                project.completion >= 75 ? 'bg-blue-100 text-blue-800' :
-                                project.completion >= 50 ? 'bg-yellow-100 text-yellow-800' :
-                                'bg-slate-100 text-slate-800'
-                              }`}>
+                              <span className={`inline-flex px-2 py-1 rounded-full text-xs font-medium ${project.completion >= 100 ? 'bg-green-100 text-green-800' :
+                                  project.completion >= 75 ? 'bg-blue-100 text-blue-800' :
+                                    project.completion >= 50 ? 'bg-yellow-100 text-yellow-800' :
+                                      'bg-slate-100 text-slate-800'
+                                }`}>
                                 {project.completion.toFixed(0)}%
                               </span>
                             </td>
@@ -382,7 +380,7 @@ export default function AdminDashboard() {
                 </motion.div>
 
                 {/* Recent Activity */}
-                <motion.div 
+                <motion.div
                   className="bg-white/70 backdrop-blur-sm shadow-xl rounded-2xl border border-slate-200/50 p-6"
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
@@ -392,12 +390,11 @@ export default function AdminDashboard() {
                   <div className="space-y-3">
                     {metrics.recentActivity.slice(0, 8).map((activity) => (
                       <div key={activity.id} className="flex items-start space-x-3">
-                        <div className={`w-2 h-2 rounded-full mt-2 ${
-                          activity.type === 'time_entry' ? 'bg-green-500' :
-                          activity.type === 'project_created' ? 'bg-blue-500' :
-                          activity.type === 'user_joined' ? 'bg-purple-500' :
-                          'bg-orange-500'
-                        }`} />
+                        <div className={`w-2 h-2 rounded-full mt-2 ${activity.type === 'time_entry' ? 'bg-green-500' :
+                            activity.type === 'project_created' ? 'bg-blue-500' :
+                              activity.type === 'user_joined' ? 'bg-purple-500' :
+                                'bg-orange-500'
+                          }`} />
                         <div className="flex-1">
                           <p className="text-sm text-slate-800">{activity.description}</p>
                           <p className="text-xs text-slate-500">{new Date(activity.timestamp).toLocaleString()}</p>

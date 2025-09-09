@@ -7,7 +7,7 @@ import { prisma } from '@/lib/prisma'
 export async function POST(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions)
-    
+
     if (!session?.user?.id) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
@@ -35,8 +35,8 @@ export async function POST(request: NextRequest) {
     // Calculate date range
     const now = new Date()
     let startDate: Date
-    let endDate: Date = new Date(now) // Use current date as end date
-    
+    const endDate: Date = new Date(now) // Use current date as end date
+
     switch (timeRange) {
       case 'week':
         startDate = new Date(now)
@@ -69,7 +69,7 @@ export async function POST(request: NextRequest) {
     const timeEntries = await prisma.timeEntry.findMany({
       where: {
         organizationId,
-        clockIn: { 
+        clockIn: {
           gte: startDate,
           lte: endDate
         },
@@ -88,7 +88,7 @@ export async function POST(request: NextRequest) {
       include: {
         timeEntries: {
           where: {
-            clockIn: { 
+            clockIn: {
               gte: startDate,
               lte: endDate
             },
@@ -142,12 +142,12 @@ export async function POST(request: NextRequest) {
       const date = new Date(now.getTime() - i * 24 * 60 * 60 * 1000)
       const dayStart = new Date(date.getFullYear(), date.getMonth(), date.getDate())
       const dayEnd = new Date(dayStart.getTime() + 24 * 60 * 60 * 1000)
-      
+
       const dayEntries = timeEntries.filter(entry => {
         const entryDate = new Date(entry.clockIn)
         return entryDate >= dayStart && entryDate < dayEnd
       })
-      
+
       weeklyActivity.push({
         day: dayNames[date.getDay()],
         hours: dayEntries.reduce((sum, entry) => sum + (entry.totalHours || 0), 0),
@@ -178,7 +178,7 @@ export async function POST(request: NextRequest) {
     // Recent activity
     const recentActivity = timeEntries.slice(0, 20).map(entry => ({
       id: entry.id,
-      type: 'time_entry' as const,
+      type: 'time_entry',
       description: `${entry.user.name || entry.user.email} logged ${(entry.totalHours || 0).toFixed(1)} hours${entry.project ? ` on ${entry.project.name}` : ''}`,
       user: {
         name: entry.user.name,
@@ -191,7 +191,7 @@ export async function POST(request: NextRequest) {
     const recentProjects = await prisma.project.findMany({
       where: {
         organizationId,
-        createdAt: { 
+        createdAt: {
           gte: startDate,
           lte: endDate
         }
@@ -212,7 +212,7 @@ export async function POST(request: NextRequest) {
           name: project.creator.name,
           email: project.creator.email
         },
-        timestamp: project.createdAt.toISOString()
+        timestamp: project.createdAt
       })
     })
 

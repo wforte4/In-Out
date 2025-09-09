@@ -60,7 +60,6 @@ export default function Reports() {
   const snackbar = useSnackbar()
   const [organizations, setOrganizations] = useState<Organization[]>([])
   const [selectedOrgId, setSelectedOrgId] = useState<string>('')
-  const [isAdmin, setIsAdmin] = useState(false)
   const [reportType, setReportType] = useState<ReportType>('time-summary')
   const [startDate, setStartDate] = useState<Date | null>(null)
   const [endDate, setEndDate] = useState<Date | null>(null)
@@ -77,7 +76,6 @@ export default function Reports() {
         setOrganizations(adminOrgs)
         if (adminOrgs.length === 1) {
           setSelectedOrgId(adminOrgs[0].id)
-          setIsAdmin(true)
         }
       }
     } catch (error) {
@@ -167,11 +165,6 @@ export default function Reports() {
     setEndDate(endOfMonth)
   }, [fetchOrganizations])
 
-  useEffect(() => {
-    const selectedOrg = organizations.find(org => org.id === selectedOrgId)
-    setIsAdmin(selectedOrg?.isAdmin || false)
-  }, [selectedOrgId, organizations])
-
   const reportTypeOptions = [
     { value: 'time-summary', label: 'Time Summary Report' },
     { value: 'payroll', label: 'Payroll Report' },
@@ -219,7 +212,7 @@ export default function Reports() {
           {/* Report Configuration */}
           <div className="bg-white/70 backdrop-blur-sm shadow-xl rounded-2xl border border-slate-200/50 p-6 mb-8 relative z-20">
             <h3 className="text-lg font-semibold text-slate-900 mb-4">Report Configuration</h3>
-            
+
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
               {organizations.length > 1 && (
                 <div>
@@ -232,7 +225,7 @@ export default function Reports() {
                   />
                 </div>
               )}
-              
+
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-2">Report Type</label>
                 <SearchableSelect
@@ -242,7 +235,7 @@ export default function Reports() {
                   placeholder="Select report type..."
                 />
               </div>
-              
+
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-2">Start Date</label>
                 <DateTimePicker
@@ -262,7 +255,7 @@ export default function Reports() {
                   placeholderText="Select start date"
                 />
               </div>
-              
+
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-2">End Date</label>
                 <DateTimePicker
@@ -347,7 +340,7 @@ export default function Reports() {
                     </svg>
                   </div>
                 </div>
-                
+
                 <div className="bg-gradient-to-r from-green-500 to-green-600 rounded-xl p-4 text-white">
                   <div className="flex items-center justify-between">
                     <div>
@@ -359,7 +352,7 @@ export default function Reports() {
                     </svg>
                   </div>
                 </div>
-                
+
                 <div className="bg-gradient-to-r from-purple-500 to-purple-600 rounded-xl p-4 text-white">
                   <div className="flex items-center justify-between">
                     <div>
@@ -544,7 +537,7 @@ export default function Reports() {
                     {reportData.timeEntries.length > 50 && (
                       <div className="mt-3 text-center">
                         <p className="text-sm text-slate-500">
-                          Showing first 50 entries of {reportData.timeEntries.length} total. 
+                          Showing first 50 entries of {reportData.timeEntries.length} total.
                           <span className="text-purple-600 font-medium"> Export for complete data.</span>
                         </p>
                       </div>

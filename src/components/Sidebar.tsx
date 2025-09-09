@@ -5,7 +5,7 @@ import { usePathname } from 'next/navigation'
 import { useSession } from 'next-auth/react'
 import Link from 'next/link'
 import Image from 'next/image'
-import { 
+import {
   BriefcaseIcon,
   DocumentTextIcon,
   CalendarDaysIcon,
@@ -34,7 +34,7 @@ export default function Sidebar({ showOrganization = true, onCollapsedChange }: 
       setIsCollapsed(shouldCollapse)
       onCollapsedChange?.(shouldCollapse)
     }
-    
+
     checkMobile()
     window.addEventListener('resize', checkMobile)
     return () => window.removeEventListener('resize', checkMobile)
@@ -44,11 +44,12 @@ export default function Sidebar({ showOrganization = true, onCollapsedChange }: 
   useEffect(() => {
     const checkAdminStatus = async () => {
       if (!session?.user) return
-      
+
       try {
         const response = await fetch('/api/organization/members')
         const data = await response.json()
         if (response.ok && data.organizations) {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           const hasAdminAccess = data.organizations.some((org: any) => org.isAdmin)
           setIsAdmin(hasAdminAccess)
         }
@@ -124,7 +125,7 @@ export default function Sidebar({ showOrganization = true, onCollapsedChange }: 
     },
   ]
 
-  const organizationNavItems = allOrganizationNavItems.filter(item => 
+  const organizationNavItems = allOrganizationNavItems.filter(item =>
     !item.adminOnly || isAdmin
   )
 
@@ -138,15 +139,15 @@ export default function Sidebar({ showOrganization = true, onCollapsedChange }: 
         {/* Logo */}
         <div className="flex items-center justify-between p-4 border-b border-slate-200 h-16">
           {isCollapsed ? (
-            <button 
+            <button
               onClick={handleToggleCollapse}
               className="flex items-center justify-center w-full hover:bg-slate-100 rounded-lg p-1 transition-colors"
               title="Expand sidebar"
             >
-              <Image 
-                src="/logo_simple.png" 
-                alt="In&Out Logo" 
-                width={24} 
+              <Image
+                src="/logo_simple.png"
+                alt="In&Out Logo"
+                width={24}
                 height={24}
                 className="object-contain"
               />
@@ -154,10 +155,10 @@ export default function Sidebar({ showOrganization = true, onCollapsedChange }: 
           ) : (
             <>
               <Link href="/dashboard" className="flex items-center space-x-2">
-                <Image 
-                  src="/logo_simple.png" 
-                  alt="In&Out Logo" 
-                  width={28} 
+                <Image
+                  src="/logo_simple.png"
+                  alt="In&Out Logo"
+                  width={28}
                   height={28}
                   className="object-contain"
                 />
@@ -187,11 +188,10 @@ export default function Sidebar({ showOrganization = true, onCollapsedChange }: 
               <Link
                 key={item.href}
                 href={item.href}
-                className={`flex items-center px-3 py-2 text-sm font-medium rounded-lg transition-colors duration-200 ${
-                  isActiveLink(item.href)
-                    ? 'bg-purple-100 text-purple-900 border border-purple-200'
-                    : 'text-slate-700 hover:bg-slate-100 hover:text-purple-700'
-                } ${isCollapsed ? 'justify-center' : ''}`}
+                className={`flex items-center px-3 py-2 text-sm font-medium rounded-lg transition-colors duration-200 ${isActiveLink(item.href)
+                  ? 'bg-purple-100 text-purple-900 border border-purple-200'
+                  : 'text-slate-700 hover:bg-slate-100 hover:text-purple-700'
+                  } ${isCollapsed ? 'justify-center' : ''}`}
                 title={isCollapsed ? item.name : undefined}
               >
                 <span className={`${isCollapsed ? '' : 'mr-3'}`}>
@@ -217,11 +217,10 @@ export default function Sidebar({ showOrganization = true, onCollapsedChange }: 
                 <Link
                   key={item.href}
                   href={item.href}
-                  className={`flex items-center px-3 py-2 text-sm font-medium rounded-lg transition-colors duration-200 ${
-                    isActiveLink(item.href)
-                      ? 'bg-purple-100 text-purple-900 border border-purple-200'
-                      : 'text-slate-700 hover:bg-slate-100 hover:text-purple-700'
-                  } ${isCollapsed ? 'justify-center' : ''}`}
+                  className={`flex items-center px-3 py-2 text-sm font-medium rounded-lg transition-colors duration-200 ${isActiveLink(item.href)
+                    ? 'bg-purple-100 text-purple-900 border border-purple-200'
+                    : 'text-slate-700 hover:bg-slate-100 hover:text-purple-700'
+                    } ${isCollapsed ? 'justify-center' : ''}`}
                   title={isCollapsed ? item.name : undefined}
                 >
                   <span className={`${isCollapsed ? '' : 'mr-3'}`}>

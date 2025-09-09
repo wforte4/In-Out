@@ -7,12 +7,12 @@ import { prisma } from '@/lib/prisma'
 export async function POST(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions)
-    
+
     if (!session?.user?.id) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const { organizationId, reportType, startDate, endDate } = await request.json()
+    const { organizationId, startDate, endDate } = await request.json()
 
     if (!organizationId || !startDate || !endDate) {
       return NextResponse.json({ error: 'Organization, start date, and end date are required' }, { status: 400 })
@@ -34,7 +34,7 @@ export async function POST(request: NextRequest) {
 
     const start = new Date(startDate)
     const end = new Date(endDate)
-    
+
     // Fetch time entries for the date range
     const timeEntries = await prisma.timeEntry.findMany({
       where: {
@@ -70,13 +70,13 @@ export async function POST(request: NextRequest) {
 
     // Calculate report data
     const totalHours = timeEntries.reduce((sum, entry) => sum + (entry.totalHours || 0), 0)
-    
+
     // Calculate costs for each entry
     const entriesWithCost = timeEntries.map(entry => {
       const hours = entry.totalHours || 0
       const rate = entry.project?.hourlyRate || 25.00 // Default rate if no project rate
       const calculatedCost = hours * rate
-      
+
       return {
         ...entry,
         hourlyRate: rate,
@@ -113,7 +113,7 @@ export async function POST(request: NextRequest) {
     entriesWithCost.forEach(entry => {
       const projectId = entry.project?.id || 'no-project'
       const projectName = entry.project?.name || 'No Project'
-      
+
       if (!projectMap.has(projectId)) {
         projectMap.set(projectId, {
           projectId,
