@@ -16,6 +16,11 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "In&Out - Time Tracking",
   description: "Employee time tracking and organization management",
+  icons: {
+    icon: '/logo_simple.png',
+    shortcut: '/logo_simple.png',
+    apple: '/logo_simple.png',
+  },
 };
 
 export default function RootLayout({

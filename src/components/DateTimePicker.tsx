@@ -75,6 +75,9 @@ export default function DateTimePicker({
         popperClassName="custom-datepicker-popper"
         calendarClassName="custom-datepicker-calendar"
         required={required}
+        // Enhanced time selection with 5-minute increments
+        timeIntervals={5} // 5 minute intervals
+        timeCaption="Time"
         // Add some nice UX features
         selectsStart={false}
         selectsEnd={false}
@@ -83,6 +86,13 @@ export default function DateTimePicker({
         fixedHeight
         // Allow proper positioning outside modal bounds
         popperPlacement="bottom-start"
+        // Prevent pre-selection issues
+        highlightDates={[]}
+        excludeDates={[]}
+        includeDates={undefined}
+        // Clear keyboard selection behavior
+        preventOpenOnFocus={false}
+        showWeekNumbers={false}
       />
 
       <style jsx global>{`
@@ -91,7 +101,7 @@ export default function DateTimePicker({
         }
 
         .custom-datepicker-popper {
-          z-index: 100 !important;
+          z-index: 1000 !important;
         }
 
         .custom-datepicker-calendar {
@@ -185,8 +195,13 @@ export default function DateTimePicker({
         }
 
         .react-datepicker__day--keyboard-selected {
-          background: rgba(124, 58, 237, 0.2) !important;
-          color: #7c3aed !important;
+          background: transparent !important;
+          color: #374151 !important;
+        }
+        
+        .react-datepicker__day--keyboard-selected:hover {
+          background: linear-gradient(135deg, #7c3aed 0%, #3b82f6 100%) !important;
+          color: white !important;
         }
 
         .react-datepicker__day--outside-month {

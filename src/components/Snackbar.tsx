@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
 
 interface SnackbarProps {
   message: string
@@ -46,20 +47,53 @@ export default function Snackbar({
 
   return (
     <div className="fixed top-4 right-4 z-50 max-w-sm">
-      <div className={`${bgColor} ${textColor} px-6 py-4 rounded-xl shadow-lg border border-white/20 backdrop-blur-sm transform transition-all duration-300 ease-out translate-x-0 opacity-100`}>
-        <div className="flex items-center space-x-3">
-          {icon}
-          <span className="font-medium text-sm">{message}</span>
-          <button 
-            onClick={onClose}
-            className="ml-auto hover:opacity-75 transition-opacity"
+      <AnimatePresence>
+        {show && (
+          <motion.div
+            initial={{ opacity: 0, x: 100, scale: 0.95 }}
+            animate={{ opacity: 1, x: 0, scale: 1 }}
+            exit={{ opacity: 0, x: 100, scale: 0.95 }}
+            transition={{
+              type: "spring",
+              stiffness: 300,
+              damping: 30,
+              mass: 0.8
+            }}
+            className={`${bgColor} ${textColor} px-6 py-4 rounded-xl shadow-lg border border-white/20 backdrop-blur-sm`}
           >
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
-        </div>
-      </div>
+            <div className="flex items-center space-x-3">
+              <motion.div
+                initial={{ rotate: -180, scale: 0 }}
+                animate={{ rotate: 0, scale: 1 }}
+                transition={{ delay: 0.2, type: "spring", stiffness: 200 }}
+              >
+                {icon}
+              </motion.div>
+              <motion.span 
+                className="font-medium text-sm"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.1 }}
+              >
+                {message}
+              </motion.span>
+              <motion.button 
+                onClick={onClose}
+                className="ml-auto hover:opacity-75 transition-opacity"
+                whileHover={{ scale: 1.1 }}
+                whileTap={{ scale: 0.9 }}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.3 }}
+              >
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </motion.button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   )
 }

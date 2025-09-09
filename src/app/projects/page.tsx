@@ -3,8 +3,19 @@
 import { useEffect, useState, useCallback } from 'react'
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
+import { 
+  PlusIcon,
+  BuildingOfficeIcon,
+  ExclamationTriangleIcon,
+  FolderIcon,
+  ClockIcon,
+  ChartBarIcon,
+  CurrencyDollarIcon,
+  BanknotesIcon
+} from '@heroicons/react/24/outline'
 import AuthenticatedLayout from '../../components/AuthenticatedLayout'
 import SearchableSelect from '../../components/SearchableSelect'
+import Button from '../../components/Button'
 import { useSnackbar } from '../../hooks/useSnackbar'
 
 interface Project {
@@ -31,13 +42,15 @@ interface Organization {
 }
 
 export default function Projects() {
-  useSession()
+  const { data: session } = useSession()
   const router = useRouter()
   const [organizations, setOrganizations] = useState<Organization[]>([])
   const [selectedOrgId, setSelectedOrgId] = useState<string>('')
   const [isAdmin, setIsAdmin] = useState(false)
   const [projects, setProjects] = useState<Project[]>([])
   const [loading, setLoading] = useState(true)
+  const [hasAdminAccess, setHasAdminAccess] = useState(false)
+  const [accessLoading, setAccessLoading] = useState(true)
   const [showCreateForm, setShowCreateForm] = useState(false)
   const [newProject, setNewProject] = useState({
     name: '',
@@ -53,15 +66,18 @@ export default function Projects() {
       const response = await fetch('/api/organization/members')
       const data = await response.json()
       if (response.ok && data.organizations) {
-        setOrganizations(data.organizations)
-        if (data.organizations.length === 1) {
-          setSelectedOrgId(data.organizations[0].id)
-          setIsAdmin(data.organizations[0].isAdmin)
+        const adminOrgs = data.organizations.filter((org: Organization) => org.isAdmin)
+        setOrganizations(adminOrgs)
+        setHasAdminAccess(adminOrgs.length > 0)
+        if (adminOrgs.length === 1) {
+          setSelectedOrgId(adminOrgs[0].id)
+          setIsAdmin(adminOrgs[0].isAdmin)
         }
       }
     } catch (error) {
       console.error('Error fetching organizations:', error)
     }
+    setAccessLoading(false)
   }
 
   const fetchProjects = useCallback(async () => {
@@ -81,8 +97,12 @@ export default function Projects() {
   }, [selectedOrgId])
 
   useEffect(() => {
-    fetchOrganizations()
-  }, [])
+    if (session) {
+      fetchOrganizations()
+    } else if (session === null) {
+      setAccessLoading(false)
+    }
+  }, [session])
 
   useEffect(() => {
     if (selectedOrgId) {
@@ -152,6 +172,38 @@ export default function Projects() {
     router.push(`/projects/${projectId}`)
   }
 
+  if (accessLoading) {
+    return (
+      <AuthenticatedLayout>
+        <div className="max-w-7xl mx-auto py-8 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-center py-12">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600"></div>
+          </div>
+        </div>
+      </AuthenticatedLayout>
+    )
+  }
+
+  if (!hasAdminAccess) {
+    return (
+      <AuthenticatedLayout>
+        <div className="max-w-7xl mx-auto py-8 sm:px-6 lg:px-8">
+          <div className="px-4 py-6 sm:px-0">
+            <div className="bg-amber-50 border border-amber-200 rounded-2xl p-6">
+              <div className="flex items-center space-x-3">
+                <ExclamationTriangleIcon className="w-5 h-5 text-amber-600" />
+                <div>
+                  <h3 className="text-lg font-semibold text-amber-900">Admin Access Required</h3>
+                  <p className="text-amber-700">You need admin access to an organization to manage projects.</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </AuthenticatedLayout>
+    )
+  }
+
   return (
     <AuthenticatedLayout>
       <div className="max-w-7xl mx-auto py-8 sm:px-6 lg:px-8">
@@ -162,15 +214,13 @@ export default function Projects() {
               <p className="text-slate-600 mt-2">Manage and track your organization&apos;s projects</p>
             </div>
             {selectedOrgId && isAdmin && (
-              <button
+              <Button
                 onClick={() => setShowCreateForm(true)}
-                className="inline-flex items-center px-4 py-2 bg-purple-600 text-white text-sm font-semibold rounded-xl hover:bg-purple-700 transform hover:-translate-y-0.5 transition-all duration-200"
+                variant="primary"
+                icon={<PlusIcon className="w-5 h-5" />}
               >
-                <svg className="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-                </svg>
                 New Project
-              </button>
+              </Button>
             )}
           </div>
 
@@ -187,9 +237,7 @@ export default function Projects() {
           ) : organizations.length === 1 && selectedOrgId ? (
             <div className="bg-white/70 backdrop-blur-sm shadow-xl rounded-2xl border border-slate-200/50 p-6 mb-8">
               <div className="flex items-center space-x-3">
-                <svg className="w-5 h-5 text-purple-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-                </svg>
+                <BuildingOfficeIcon className="w-5 h-5 text-purple-600" />
                 <div>
                   <h3 className="text-lg font-semibold text-slate-900">Organization</h3>
                   <p className="text-slate-600">{organizations[0]?.name}</p>
@@ -199,9 +247,7 @@ export default function Projects() {
           ) : organizations.length === 0 ? (
             <div className="bg-amber-50 border border-amber-200 rounded-2xl p-6 mb-8">
               <div className="flex items-center space-x-3">
-                <svg className="w-5 h-5 text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.732-.833-2.5 0L4.314 16.5c-.77.833.192 2.5 1.732 2.5z" />
-                </svg>
+                <ExclamationTriangleIcon className="w-5 h-5 text-amber-600" />
                 <div>
                   <h3 className="text-lg font-semibold text-amber-900">No Organization</h3>
                   <p className="text-amber-700">You need to create or join an organization before creating projects.</p>
@@ -286,19 +332,19 @@ export default function Projects() {
                 </div>
 
                 <div className="flex gap-3">
-                  <button
+                  <Button
                     type="submit"
-                    className="px-6 py-2 bg-purple-600 text-white rounded-xl hover:bg-purple-700 transform hover:-translate-y-0.5 transition-all duration-200"
+                    variant="primary"
                   >
                     Create Project
-                  </button>
-                  <button
+                  </Button>
+                  <Button
                     type="button"
                     onClick={() => setShowCreateForm(false)}
-                    className="px-6 py-2 bg-slate-200 text-slate-700 rounded-xl hover:bg-slate-300 transition-colors"
+                    variant="secondary"
                   >
                     Cancel
-                  </button>
+                  </Button>
                 </div>
               </form>
             </div>
@@ -317,78 +363,71 @@ export default function Projects() {
                 </div>
               ) : projects.length === 0 ? (
                 <div className="p-8 text-center">
-                  <svg className="w-16 h-16 text-slate-400 mx-auto mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 9a2 2 0 00-2 2v2m0 0h14m0 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2z" />
-                  </svg>
+                  <FolderIcon className="w-16 h-16 text-slate-400 mx-auto mb-4" />
                   <h3 className="text-lg font-semibold text-slate-700 mb-2">No projects yet</h3>
                   <p className="text-slate-500 mb-4">
                     {isAdmin ? 'Create your first project to start tracking work' : 'No projects have been created yet'}
                   </p>
                   {isAdmin && (
-                    <button
+                    <Button
                       onClick={() => setShowCreateForm(true)}
-                      className="inline-flex items-center px-4 py-2 bg-purple-600 text-white text-sm font-semibold rounded-xl hover:bg-purple-700 transform hover:-translate-y-0.5 transition-all duration-200"
+                      variant="primary"
+                      icon={<PlusIcon className="w-5 h-5" />}
                     >
-                      <svg className="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-                      </svg>
                       Create Project
-                    </button>
+                    </Button>
                   )}
                 </div>
               ) : (
                 <div className="divide-y divide-slate-200/50">
                   {projects.map((project) => (
-                    <div key={project.id} className="p-6 hover:bg-slate-50/50 transition-colors">
+                    <div 
+                      key={project.id} 
+                      className="p-6 hover:bg-slate-50/80 hover:shadow-lg cursor-pointer transition-all duration-200 group"
+                      onClick={() => handleViewProject(project.id)}
+                    >
                       <div className="flex items-center justify-between">
                         <div className="flex-1">
                           <div className="flex items-center space-x-3 mb-2">
-                            <h4 className="text-lg font-semibold text-slate-900">{project.name}</h4>
+                            <h4 className="text-lg font-semibold text-slate-900 group-hover:text-purple-700 transition-colors">
+                              {project.name}
+                            </h4>
                             {getStatusBadge(project.status)}
                           </div>
                           {project.description && (
-                            <p className="text-slate-600 mb-3">{project.description}</p>
+                            <p className="text-slate-600 mb-3 group-hover:text-slate-700 transition-colors">
+                              {project.description}
+                            </p>
                           )}
-                          <div className="flex flex-wrap gap-4 text-sm text-slate-500">
+                          <div className="flex flex-wrap gap-4 text-sm text-slate-500 group-hover:text-slate-600 transition-colors">
                             <div className="flex items-center">
-                              <svg className="w-4 h-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                              </svg>
+                              <ClockIcon className="w-4 h-4 mr-1" />
                               {project.totalHours.toFixed(1)}h logged
                             </div>
                             {project.estimatedHours && (
                               <div className="flex items-center">
-                                <svg className="w-4 h-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-                                </svg>
+                                <ChartBarIcon className="w-4 h-4 mr-1" />
                                 {((project.totalHours / project.estimatedHours) * 100).toFixed(0)}% complete
                               </div>
                             )}
                             {project.hourlyRate && (
                               <div className="flex items-center">
-                                <svg className="w-4 h-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
-                                </svg>
+                                <CurrencyDollarIcon className="w-4 h-4 mr-1" />
                                 ${project.hourlyRate}/hr
                               </div>
                             )}
                             {project.fixedCost && (
                               <div className="flex items-center">
-                                <svg className="w-4 h-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
-                                </svg>
+                                <BanknotesIcon className="w-4 h-4 mr-1" />
                                 ${project.fixedCost} fixed
                               </div>
                             )}
                           </div>
                         </div>
-                        <div className="flex items-center space-x-2">
-                          <button
-                            onClick={() => handleViewProject(project.id)}
-                            className="px-3 py-1 text-sm bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors"
-                          >
-                            View Details
-                          </button>
+                        <div className="flex items-center space-x-2 opacity-60 group-hover:opacity-100 transition-opacity">
+                          <div className="px-3 py-1 text-sm bg-purple-100 text-purple-700 rounded-lg border border-purple-200 group-hover:bg-purple-200 transition-colors">
+                            View Details →
+                          </div>
                         </div>
                       </div>
                     </div>

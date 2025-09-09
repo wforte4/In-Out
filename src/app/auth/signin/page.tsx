@@ -129,17 +129,27 @@ export default function SignIn() {
                 )}
               </button>
 
-              <div className="text-center pt-4">
-                <Link 
-                  href="/auth/signup" 
-                  className="inline-flex items-center text-purple-600 hover:text-purple-700 font-medium transition-colors duration-200"
-                >
-                  Don&apos;t have an account? 
-                  <span className="ml-1 font-semibold">Sign up</span>
-                  <svg className="w-4 h-4 ml-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
-                  </svg>
-                </Link>
+              <div className="text-center pt-4 space-y-3">
+                <div>
+                  <Link 
+                    href="/auth/forgot-password" 
+                    className="text-slate-600 hover:text-purple-600 text-sm font-medium transition-colors duration-200"
+                  >
+                    Forgot your password?
+                  </Link>
+                </div>
+                <div>
+                  <Link 
+                    href="/auth/signup" 
+                    className="inline-flex items-center text-purple-600 hover:text-purple-700 font-medium transition-colors duration-200"
+                  >
+                    Don&apos;t have an account? 
+                    <span className="ml-1 font-semibold">Sign up</span>
+                    <svg className="w-4 h-4 ml-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
+                    </svg>
+                  </Link>
+                </div>
               </div>
             </form>
           </div>

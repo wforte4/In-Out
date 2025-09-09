@@ -2,6 +2,7 @@
 
 import { useState, useEffect, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
+import { signIn } from 'next-auth/react'
 import Link from 'next/link'
 import Image from 'next/image'
 import PasswordInput from '../../../components/PasswordInput'
@@ -16,6 +17,7 @@ function SignUpContent() {
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
   const [loading, setLoading] = useState(false)
+  const [isSigningIn, setIsSigningIn] = useState(false)
   const [invitationToken, setInvitationToken] = useState<string | null>(null)
   const [invitationData, setInvitationData] = useState<{
     email: string
@@ -82,11 +84,29 @@ function SignUpContent() {
         setError(data.error || 'An error occurred')
       } else {
         if (mode === 'create') {
-          setSuccess(`Account created! Organization code: ${data.organizationCode}`)
+          setSuccess(`Account created! Organization code: ${data.organizationCode}. Signing you in...`)
         } else {
-          setSuccess('Account created! You can now sign in.')
+          setSuccess('Account created! Signing you in...')
         }
-        setTimeout(() => router.push('/auth/signin'), 2000)
+        
+        // Automatically sign in the user after successful registration
+        setTimeout(async () => {
+          setIsSigningIn(true)
+          const signInResult = await signIn('credentials', {
+            email,
+            password,
+            redirect: false,
+          })
+          
+          if (signInResult?.ok) {
+            router.push('/dashboard')
+          } else {
+            // If auto sign-in fails, redirect to sign-in page
+            setIsSigningIn(false)
+            setError('Account created but sign-in failed. Please sign in manually.')
+            setTimeout(() => router.push('/auth/signin'), 2000)
+          }
+        }, 1500)
       }
     } catch {
       setError('An error occurred. Please try again.')
@@ -288,7 +308,7 @@ function SignUpContent() {
 
               <button
                 type="submit"
-                disabled={loading}
+                disabled={loading || isSigningIn}
                 className="w-full group relative inline-flex items-center justify-center px-6 py-3 text-lg font-semibold text-white bg-gradient-to-r from-purple-600 to-blue-600 rounded-2xl hover:from-purple-700 hover:to-blue-700 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 disabled:opacity-50 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all duration-200 cursor-pointer"
               >
                 {loading ? (
@@ -298,6 +318,14 @@ function SignUpContent() {
                       <path className="opacity-75" fill="currentColor" d="m4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                     </svg>
                     Creating account...
+                  </>
+                ) : isSigningIn ? (
+                  <>
+                    <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="m4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    Signing you in...
                   </>
                 ) : (
                   <>

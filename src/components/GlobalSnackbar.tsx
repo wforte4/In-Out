@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useEffect } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
 import { useAppSelector, useAppDispatch } from '../store/hooks'
 import { hideSnackbar } from '../store/slices/snackbarSlice'
 
@@ -65,25 +66,55 @@ export default function GlobalSnackbar() {
   }
 
   return (
-    <div className="fixed top-4 right-4 z-50 animate-in slide-in-from-top-2 duration-300">
-      <div className={`${getBackgroundColor()} text-white px-6 py-4 rounded-2xl shadow-xl border border-white/20 backdrop-blur-sm max-w-md`}>
-        <div className="flex items-center space-x-3">
-          <div className="flex-shrink-0">
-            {getIcon()}
-          </div>
-          <div className="flex-1">
-            <p className="font-medium text-white">{message}</p>
-          </div>
-          <button
-            onClick={() => dispatch(hideSnackbar())}
-            className="flex-shrink-0 ml-4 p-1 rounded-lg hover:bg-white/20 transition-colors duration-200"
+    <div className="fixed top-20 right-4 z-50 max-w-md">
+      <AnimatePresence>
+        {show && (
+          <motion.div
+            initial={{ opacity: 0, x: 100, scale: 0.95 }}
+            animate={{ opacity: 1, x: 0, scale: 1 }}
+            exit={{ opacity: 0, x: 100, scale: 0.95 }}
+            transition={{
+              type: "spring",
+              stiffness: 300,
+              damping: 30,
+              mass: 0.8
+            }}
+            className={`${getBackgroundColor()} text-white px-6 py-4 rounded-2xl shadow-xl border border-white/20 backdrop-blur-sm`}
           >
-            <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
-        </div>
-      </div>
+            <div className="flex items-center space-x-3">
+              <motion.div
+                className="flex-shrink-0"
+                initial={{ rotate: -180, scale: 0 }}
+                animate={{ rotate: 0, scale: 1 }}
+                transition={{ delay: 0.2, type: "spring", stiffness: 200 }}
+              >
+                {getIcon()}
+              </motion.div>
+              <motion.div 
+                className="flex-1"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.1 }}
+              >
+                <p className="font-medium text-white">{message}</p>
+              </motion.div>
+              <motion.button
+                onClick={() => dispatch(hideSnackbar())}
+                className="flex-shrink-0 ml-4 p-1 rounded-lg hover:bg-white/20 transition-colors duration-200"
+                whileHover={{ scale: 1.1 }}
+                whileTap={{ scale: 0.9 }}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.3 }}
+              >
+                <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </motion.button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   )
 }

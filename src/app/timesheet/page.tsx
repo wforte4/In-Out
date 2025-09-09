@@ -224,6 +224,39 @@ function TimesheetContent() {
     }, 0)
   }
 
+  const getHoursForPeriod = (period: 'today' | 'week' | 'month') => {
+    const now = new Date()
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+    
+    let startDate: Date
+    let endDate: Date
+    
+    if (period === 'today') {
+      startDate = today
+      endDate = today
+    } else if (period === 'week') {
+      // Get the start of the current week (Sunday)
+      const dayOfWeek = now.getDay() // 0 = Sunday, 1 = Monday, etc.
+      startDate = new Date(today)
+      startDate.setDate(today.getDate() - dayOfWeek) // Go back to Sunday
+      
+      // End of week (Saturday)
+      endDate = new Date(startDate)
+      endDate.setDate(startDate.getDate() + 6)
+    } else {
+      startDate = new Date(today.getFullYear(), today.getMonth(), 1) // Start of current month
+      endDate = today
+    }
+    
+    return timeEntries.filter(entry => {
+      const entryDate = new Date(entry.clockIn)
+      const entryDay = new Date(entryDate.getFullYear(), entryDate.getMonth(), entryDate.getDate())
+      return entryDay >= startDate && entryDay <= endDate
+    }).reduce((total, entry) => {
+      return total + (entry.totalHours || 0)
+    }, 0)
+  }
+
   // Calendar utility functions
   const isSameDay = (date1: Date, date2: Date) => {
     return date1.getFullYear() === date2.getFullYear() &&
@@ -423,15 +456,31 @@ function TimesheetContent() {
             <div className="flex items-center justify-between mb-6">
               <div>
                 <h1 className="text-3xl font-bold text-slate-900">
-                  {viewingUser ? `${viewingUser}'s Schedule & Timesheet` : 'Schedule & Timesheet'}
+                  {viewingUser ? `${viewingUser}'s Timesheet` : 'Timesheet'}
                 </h1>
                 <div className="flex items-center mt-2 space-x-4">
-                  <div className="inline-flex items-center px-3 py-1 rounded-xl bg-gradient-to-r from-green-100 to-emerald-100 border border-green-200">
-                    <svg className="w-4 h-4 text-green-600 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <div className="inline-flex items-center px-3 py-1 rounded-xl bg-gradient-to-r from-blue-100 to-blue-200 border border-blue-200">
+                    <svg className="w-4 h-4 text-blue-600 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
-                    <span className="text-sm font-semibold text-green-800">Total: {getTotalHours().toFixed(2)} hours</span>
+                    <span className="text-sm font-semibold text-blue-800">Today: {getHoursForPeriod('today').toFixed(1)}h</span>
                   </div>
+                  {(viewMode === 'week' || viewMode === 'month') && (
+                    <div className="inline-flex items-center px-3 py-1 rounded-xl bg-gradient-to-r from-purple-100 to-purple-200 border border-purple-200">
+                      <svg className="w-4 h-4 text-purple-600 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3a4 4 0 118 0v4m-4 0H6a2 2 0 00-2 2v8a2 2 0 002 2h12a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4 0V7zM9 11h6m-6 4h6" />
+                      </svg>
+                      <span className="text-sm font-semibold text-purple-800">Week: {getHoursForPeriod('week').toFixed(1)}h</span>
+                    </div>
+                  )}
+                  {viewMode === 'month' && (
+                    <div className="inline-flex items-center px-3 py-1 rounded-xl bg-gradient-to-r from-green-100 to-emerald-100 border border-green-200">
+                      <svg className="w-4 h-4 text-green-600 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                      </svg>
+                      <span className="text-sm font-semibold text-green-800">Month: {getHoursForPeriod('month').toFixed(1)}h</span>
+                    </div>
+                  )}
                   <div className="inline-flex items-center px-3 py-1 rounded-xl bg-gradient-to-r from-blue-100 to-indigo-100 border border-blue-200">
                     <svg className="w-4 h-4 text-blue-600 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3a1 1 0 012-2h4a1 1 0 012 2v4m0 0V3h4a2 2 0 012 2v12a2 2 0 01-2 2H6a2 2 0 01-2-2V5a2 2 0 012-2h4v4z" />

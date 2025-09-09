@@ -10,6 +10,12 @@ import SectionCard from '../../components/SectionCard'
 import Button from '../../components/Button'
 import AddShiftModal from '../../components/modals/AddShiftModal'
 import { useModal } from '../../hooks/useModal'
+import { 
+  CalendarDaysIcon,
+  ClockIcon,
+  BuildingOfficeIcon,
+  PlusIcon 
+} from '@heroicons/react/24/outline'
 
 interface User {
   id: string
@@ -210,11 +216,7 @@ export default function MySchedule() {
               title="No organizations found"
               message="You're not part of any organizations yet"
               iconColorScheme="slate"
-              icon={
-                <svg className="w-8 h-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3a4 4 0 118 0v4m-4 8l-2-2m6 0l-2 2m-2-4v8" />
-                </svg>
-              }
+              icon={<CalendarDaysIcon className="w-8 h-8 text-white" />}
             />
           ) : (
             <div className="space-y-8">
@@ -223,11 +225,7 @@ export default function MySchedule() {
                   title="Organization Selection"
                   description="Choose which organization's schedule to view"
                   iconColorScheme="blue"
-                  icon={
-                    <svg className="w-8 h-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-                    </svg>
-                  }
+                  icon={<BuildingOfficeIcon className="w-8 h-8 text-white" />}
                 >
                   <CustomDropdown
                     label="Select Organization"
@@ -251,11 +249,7 @@ export default function MySchedule() {
                       <Button
                         onClick={handleAddShift}
                         variant="success"
-                        icon={
-                          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                          </svg>
-                        }
+                        icon={<PlusIcon className="w-5 h-5" />}
                       >
                         Add Shift
                       </Button>
@@ -265,11 +259,7 @@ export default function MySchedule() {
                     title="Today's Shifts"
                     description={`${todayShifts.length} shift${todayShifts.length !== 1 ? 's' : ''} scheduled for today`}
                     iconColorScheme="green"
-                    icon={
-                      <svg className="w-8 h-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                      </svg>
-                    }
+                    icon={<ClockIcon className="w-8 h-8 text-white" />}
                   >
                     {todayShifts.length === 0 ? (
                       <p className="text-slate-500 text-center py-8">No shifts scheduled for today</p>
@@ -286,11 +276,7 @@ export default function MySchedule() {
                     title="Upcoming Shifts"
                     description={`${upcomingShifts.length} upcoming shift${upcomingShifts.length !== 1 ? 's' : ''} scheduled`}
                     iconColorScheme="purple"
-                    icon={
-                      <svg className="w-8 h-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3a4 4 0 118 0v4m-4 8l-2-2m6 0l-2 2m-2-4v8" />
-                      </svg>
-                    }
+                    icon={<CalendarDaysIcon className="w-8 h-8 text-white" />}
                   >
                     {upcomingShifts.length === 0 ? (
                       <p className="text-slate-500 text-center py-8">No upcoming shifts scheduled</p>

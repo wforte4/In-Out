@@ -27,6 +27,7 @@ model User {
   createdProjects    Project[]      @relation("ProjectCreator")
   projectCosts       ProjectCost[]  @relation("ProjectCostUser")
   createdProjectCosts ProjectCost[] @relation("ProjectCostCreator")
+  passwordResetTokens PasswordResetToken[]
 
   @@map("users")
 }
@@ -209,6 +210,18 @@ model ProjectCost {
   creator     User        @relation("ProjectCostCreator", fields: [createdBy], references: [id])
 
   @@map("project_costs")
+}
+
+model PasswordResetToken {
+  id        String   @id @default(cuid())
+  token     String   @unique
+  userId    String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  used      Boolean  @default(false)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("password_reset_tokens")
 }
 
 enum Role {

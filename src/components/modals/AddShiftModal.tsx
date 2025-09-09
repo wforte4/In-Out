@@ -5,6 +5,7 @@ import Button from '../Button'
 import TextInput from '../TextInput'
 import CustomDropdown from '../CustomDropdown'
 import SimpleRichTextEditor from '../SimpleRichTextEditor'
+import DateTimePicker from '../DateTimePicker'
 import { useSnackbar } from '../../hooks/useSnackbar'
 
 interface User {
@@ -51,8 +52,8 @@ const AddShiftModal: React.FC<AddShiftModalProps> = ({
   const [shiftFormData, setShiftFormData] = useState({
     title: '',
     description: '',
-    startTime: '',
-    endTime: '',
+    startTime: null as Date | null,
+    endTime: null as Date | null,
     userId: '',
     projectId: '',
     isRecurring: false,
@@ -70,6 +71,8 @@ const AddShiftModal: React.FC<AddShiftModalProps> = ({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           ...shiftFormData,
+          startTime: shiftFormData.startTime?.toISOString(),
+          endTime: shiftFormData.endTime?.toISOString(),
           scheduleId: scheduleId,
           userId: shiftFormData.userId || null,
           projectId: shiftFormData.projectId || null
@@ -155,22 +158,25 @@ const AddShiftModal: React.FC<AddShiftModalProps> = ({
         <div className="grid grid-cols-2 gap-4">
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-2">Start Time</label>
-            <input
-              type="datetime-local"
-              value={shiftFormData.startTime}
-              onChange={(e) => setShiftFormData({...shiftFormData, startTime: e.target.value})}
+            <DateTimePicker
+              selected={shiftFormData.startTime}
+              onChange={(date) => setShiftFormData({...shiftFormData, startTime: date})}
+              showTimeSelect={true}
+              dateFormat="MM/dd/yyyy h:mm aa"
+              placeholderText="Select start date and time"
               required
-              className="w-full px-4 py-2 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all duration-200 bg-white text-slate-900"
             />
           </div>
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-2">End Time</label>
-            <input
-              type="datetime-local"
-              value={shiftFormData.endTime}
-              onChange={(e) => setShiftFormData({...shiftFormData, endTime: e.target.value})}
+            <DateTimePicker
+              selected={shiftFormData.endTime}
+              onChange={(date) => setShiftFormData({...shiftFormData, endTime: date})}
+              showTimeSelect={true}
+              dateFormat="MM/dd/yyyy h:mm aa"
+              placeholderText="Select end date and time"
+              minDate={shiftFormData.startTime || undefined}
               required
-              className="w-full px-4 py-2 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all duration-200 bg-white text-slate-900"
             />
           </div>
         </div>

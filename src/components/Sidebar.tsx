@@ -2,8 +2,20 @@
 
 import { useState, useEffect } from 'react'
 import { usePathname } from 'next/navigation'
+import { useSession } from 'next-auth/react'
 import Link from 'next/link'
 import Image from 'next/image'
+import { 
+  BriefcaseIcon,
+  DocumentTextIcon,
+  CalendarDaysIcon,
+  FolderIcon,
+  BuildingOfficeIcon,
+  UserGroupIcon,
+  ChevronDoubleLeftIcon,
+  ChartBarIcon,
+  CogIcon
+} from '@heroicons/react/24/outline'
 
 interface SidebarProps {
   showOrganization?: boolean
@@ -12,7 +24,9 @@ interface SidebarProps {
 
 export default function Sidebar({ showOrganization = true, onCollapsedChange }: SidebarProps) {
   const [isCollapsed, setIsCollapsed] = useState(false)
+  const [isAdmin, setIsAdmin] = useState(false)
   const pathname = usePathname()
+  const { data: session } = useSession()
 
   useEffect(() => {
     const checkMobile = () => {
@@ -26,6 +40,27 @@ export default function Sidebar({ showOrganization = true, onCollapsedChange }: 
     return () => window.removeEventListener('resize', checkMobile)
   }, [onCollapsedChange])
 
+  // Check if user has admin access to any organization
+  useEffect(() => {
+    const checkAdminStatus = async () => {
+      if (!session?.user) return
+      
+      try {
+        const response = await fetch('/api/organization/members')
+        const data = await response.json()
+        if (response.ok && data.organizations) {
+          const hasAdminAccess = data.organizations.some((org: any) => org.isAdmin)
+          setIsAdmin(hasAdminAccess)
+        }
+      } catch (error) {
+        console.error('Error checking admin status:', error)
+        setIsAdmin(false)
+      }
+    }
+
+    checkAdminStatus()
+  }, [session])
+
   const handleToggleCollapse = () => {
     const newCollapsed = !isCollapsed
     setIsCollapsed(newCollapsed)
@@ -36,71 +71,62 @@ export default function Sidebar({ showOrganization = true, onCollapsedChange }: 
     {
       name: 'Dashboard',
       href: '/dashboard',
-      icon: (
-        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2H5a2 2 0 00-2-2z" />
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 5a2 2 0 012-2h4a2 2 0 012 2v2H8V5z" />
-        </svg>
-      ),
+      icon: <BriefcaseIcon className="w-5 h-5" />,
     },
     {
       name: 'My Timesheet',
       href: '/timesheet',
-      icon: (
-        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-        </svg>
-      ),
+      icon: <DocumentTextIcon className="w-5 h-5" />,
     },
     {
       name: 'My Schedule',
       href: '/my-schedule',
-      icon: (
-        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3a4 4 0 118 0v4m-4 8l-2-2m6 0l-2 2m-2-4v8" />
-        </svg>
-      ),
+      icon: <CalendarDaysIcon className="w-5 h-5" />,
     },
   ]
 
-  const organizationNavItems = [
+  const allOrganizationNavItems = [
+    {
+      name: 'Admin Dashboard',
+      href: '/admin',
+      icon: <CogIcon className="w-5 h-5" />,
+      adminOnly: true,
+    },
     {
       name: 'Projects',
       href: '/projects',
-      icon: (
-        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 9a2 2 0 00-2 2v2" />
-        </svg>
-      ),
+      icon: <FolderIcon className="w-5 h-5" />,
+      adminOnly: true,
+    },
+    {
+      name: 'Reports',
+      href: '/reports',
+      icon: <ChartBarIcon className="w-5 h-5" />,
+      adminOnly: true,
     },
     {
       name: 'Organization',
       href: '/organization',
-      icon: (
-        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-        </svg>
-      ),
+      icon: <BuildingOfficeIcon className="w-5 h-5" />,
+      adminOnly: false,
     },
     {
       name: 'Manage Schedules',
       href: '/schedules',
-      icon: (
-        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-        </svg>
-      ),
+      icon: <CalendarDaysIcon className="w-5 h-5" />,
+      adminOnly: true,
     },
     {
       name: 'Team Invitations',
       href: '/invitations',
-      icon: (
-        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-        </svg>
-      ),
+      icon: <UserGroupIcon className="w-5 h-5" />,
+      adminOnly: true,
     },
   ]
+
+  const organizationNavItems = allOrganizationNavItems.filter(item => 
+    !item.adminOnly || isAdmin
+  )
 
   const isActiveLink = (href: string) => {
     return pathname === href
@@ -142,9 +168,7 @@ export default function Sidebar({ showOrganization = true, onCollapsedChange }: 
                 className="p-1 rounded-lg hover:bg-slate-100 transition-colors"
                 title="Collapse sidebar"
               >
-                <svg className="w-5 h-5 text-slate-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 19l-7-7 7-7m8 14l-7-7 7-7" />
-                </svg>
+                <ChevronDoubleLeftIcon className="w-5 h-5 text-slate-600" />
               </button>
             </>
           )}

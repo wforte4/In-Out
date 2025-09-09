@@ -104,3 +104,6 @@ body: JSON.stringify({
   endTime: formData.endTime?.toISOString()
 })
 ```
+- Always use svg library, don't create svgs -- they don't turn out right
+- Always componetize things for better re-usability, readability, and consistency
+- Add API calls into separate files to organize the code better, we shouldn't have tons of api calls just sitting at the top of the page. We could create thunks as well with redux if that makes it easier to manage. Then inside components we can just call one function unless it makes sense in that scenario to not over complicate things.

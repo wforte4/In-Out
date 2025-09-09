@@ -172,7 +172,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       return NextResponse.json({ error: 'Project not found' }, { status: 404 })
     }
 
-    // Check if user is member of organization
+    // Check if user is admin of organization
     const membership = await prisma.membership.findUnique({
       where: {
         userId_organizationId: {
@@ -184,6 +184,10 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 
     if (!membership) {
       return NextResponse.json({ error: 'Not a member of this organization' }, { status: 403 })
+    }
+
+    if (membership.role !== 'ADMIN') {
+      return NextResponse.json({ error: 'Admin access required' }, { status: 403 })
     }
 
     // Calculate project statistics
@@ -201,6 +205,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
           completionPercentage: project.estimatedHours ? Math.min((totalHours / project.estimatedHours) * 100, 100) : null,
         },
       },
+      isAdmin: membership.role === 'ADMIN',
     })
   } catch (error) {
     console.error('Error fetching project:', error)
