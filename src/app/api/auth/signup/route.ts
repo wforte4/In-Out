@@ -1,8 +1,30 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import bcrypt from 'bcryptjs'
+import crypto from 'crypto'
+import { sendEmailVerificationEmail } from '@/lib/email'
+import { withRateLimit } from '@/lib/rateLimit'
 
-export async function POST(request: NextRequest) {
+const generateVerificationToken = () => {
+  return crypto.randomBytes(32).toString('hex')
+}
+
+const createEmailVerificationToken = async (userId: string) => {
+  const token = generateVerificationToken()
+  const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000) // 24 hours
+
+  await prisma.emailVerificationToken.create({
+    data: {
+      token,
+      userId,
+      expiresAt
+    }
+  })
+
+  return token
+}
+
+async function handleSignup(request: NextRequest) {
   try {
     const { email, password, name, organizationName, organizationCode, invitationToken } = await request.json()
 
@@ -39,6 +61,7 @@ export async function POST(request: NextRequest) {
           email,
           password: hashedPassword,
           name,
+          emailVerified: false, // Explicitly set to false
           memberships: {
             create: {
               organizationId: invitation.organizationId,
@@ -53,10 +76,19 @@ export async function POST(request: NextRequest) {
         data: { status: 'ACCEPTED' }
       })
 
+      // Create and send email verification token
+      const verificationToken = await createEmailVerificationToken(user.id)
+      const emailResult = await sendEmailVerificationEmail(email, verificationToken, name || 'User')
+      
+      if (!emailResult.success) {
+        console.error('Failed to send verification email:', emailResult.error)
+      }
+
       return NextResponse.json({ 
-        message: 'User created and invitation accepted', 
+        message: 'User created and invitation accepted. Please check your email to verify your account.', 
         userId: user.id,
-        organizationName: invitation.organization.name
+        organizationName: invitation.organization.name,
+        requiresVerification: true
       })
     }
 
@@ -74,6 +106,7 @@ export async function POST(request: NextRequest) {
           email,
           password: hashedPassword,
           name,
+          emailVerified: false,
           memberships: {
             create: {
               organizationId: org.id,
@@ -83,7 +116,19 @@ export async function POST(request: NextRequest) {
         }
       })
 
-      return NextResponse.json({ message: 'User created and added to organization', userId: user.id })
+      // Create and send email verification token
+      const verificationToken = await createEmailVerificationToken(user.id)
+      const emailResult = await sendEmailVerificationEmail(email, verificationToken, name || 'User')
+      
+      if (!emailResult.success) {
+        console.error('Failed to send verification email:', emailResult.error)
+      }
+
+      return NextResponse.json({ 
+        message: 'User created and added to organization. Please check your email to verify your account.', 
+        userId: user.id,
+        requiresVerification: true
+      })
     }
 
     if (organizationName) {
@@ -94,6 +139,7 @@ export async function POST(request: NextRequest) {
           email,
           password: hashedPassword,
           name,
+          emailVerified: false,
           ownedOrganizations: {
             create: {
               name: organizationName,
@@ -115,7 +161,20 @@ export async function POST(request: NextRequest) {
         }
       })
 
-      return NextResponse.json({ message: 'User and organization created', userId: user.id, organizationCode: orgCode })
+      // Create and send email verification token
+      const verificationToken = await createEmailVerificationToken(user.id)
+      const emailResult = await sendEmailVerificationEmail(email, verificationToken, name || 'User')
+      
+      if (!emailResult.success) {
+        console.error('Failed to send verification email:', emailResult.error)
+      }
+
+      return NextResponse.json({ 
+        message: 'User and organization created. Please check your email to verify your account.', 
+        userId: user.id, 
+        organizationCode: orgCode,
+        requiresVerification: true
+      })
     }
 
     return NextResponse.json({ error: 'Must provide either organizationName or organizationCode' }, { status: 400 })
@@ -125,3 +184,5 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }
+
+export const POST = withRateLimit(handleSignup, 'auth')

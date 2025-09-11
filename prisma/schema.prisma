@@ -13,6 +13,9 @@ model User {
   name               String?
   password           String
   profileImage       String?
+  defaultHourlyRate  Float?         // Default hourly rate for the employee
+  emailVerified      Boolean        @default(false)
+  emailVerifiedAt    DateTime?
   createdAt          DateTime       @default(now())
   updatedAt          DateTime       @updatedAt
   accounts           Account[]
@@ -28,6 +31,9 @@ model User {
   projectCosts       ProjectCost[]  @relation("ProjectCostUser")
   createdProjectCosts ProjectCost[] @relation("ProjectCostCreator")
   passwordResetTokens PasswordResetToken[]
+  emailVerificationTokens EmailVerificationToken[]
+  projectAssignments ProjectEmployee[]
+  auditLogs AuditLog[]
 
   @@map("users")
 }
@@ -45,6 +51,7 @@ model Organization {
   schedules   Schedule[]
   invitations Invitation[]
   projects    Project[]
+  auditLogs   AuditLog[]
 
   @@map("organizations")
 }
@@ -191,6 +198,7 @@ model Project {
   timeEntries      TimeEntry[]
   projectCosts     ProjectCost[]
   shifts           Shift[]       @relation("ShiftProject")
+  projectEmployees ProjectEmployee[]
 
   @@map("projects")
 }
@@ -224,6 +232,54 @@ model PasswordResetToken {
   @@map("password_reset_tokens")
 }
 
+model EmailVerificationToken {
+  id        String   @id @default(cuid())
+  token     String   @unique
+  userId    String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  used      Boolean  @default(false)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("email_verification_tokens")
+}
+
+model AuditLog {
+  id             String     @id @default(cuid())
+  userId         String
+  action         AuditAction
+  entityType     String     // "TIME_ENTRY", "USER", "PROJECT", "ORGANIZATION", etc.
+  entityId       String?    // ID of the affected entity
+  entityName     String?    // Name/description of the affected entity for display
+  oldValues      Json?      // Previous values before change
+  newValues      Json?      // New values after change
+  metadata       Json?      // Additional context (IP address, user agent, etc.)
+  organizationId String?    // Organization context if applicable
+  createdAt      DateTime   @default(now())
+  user           User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@map("audit_logs")
+}
+
+model ProjectEmployee {
+  id             String   @id @default(cuid())
+  projectId      String
+  userId         String
+  hourlyRate     Float?   // Project-specific hourly rate (overrides default)
+  role           String?  // Project role like "Developer", "Designer", etc.
+  isActive       Boolean  @default(true)
+  joinedAt       DateTime @default(now())
+  leftAt         DateTime?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  project        Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, userId])
+  @@map("project_employees")
+}
+
 enum Role {
   EMPLOYEE
   ADMIN
@@ -247,4 +303,47 @@ enum InvitationStatus {
   ACCEPTED
   EXPIRED
   CANCELLED
+}
+
+enum AuditAction {
+  // Time Entry Actions
+  TIME_ENTRY_CREATED
+  TIME_ENTRY_UPDATED
+  TIME_ENTRY_DELETED
+  TIME_CLOCK_IN
+  TIME_CLOCK_OUT
+  
+  // User Management Actions
+  USER_CREATED
+  USER_UPDATED
+  USER_DELETED
+  USER_ROLE_CHANGED
+  USER_RATE_CHANGED
+  USER_REMOVED_FROM_ORG
+  
+  // Organization Actions
+  ORGANIZATION_CREATED
+  ORGANIZATION_UPDATED
+  ORGANIZATION_DELETED
+  
+  // Project Actions
+  PROJECT_CREATED
+  PROJECT_UPDATED
+  PROJECT_DELETED
+  PROJECT_MEMBER_ADDED
+  PROJECT_MEMBER_REMOVED
+  PROJECT_MEMBER_RATE_CHANGED
+  
+  // Authentication Actions
+  LOGIN_SUCCESS
+  LOGIN_FAILED
+  LOGOUT
+  PASSWORD_CHANGED
+  EMAIL_VERIFIED
+  
+  // Admin Actions
+  ADMIN_ACCESS_GRANTED
+  ADMIN_ACCESS_REVOKED
+  DATA_EXPORTED
+  BULK_OPERATION
 }

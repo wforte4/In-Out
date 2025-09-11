@@ -4,11 +4,15 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import AuthenticatedLayout from '../../components/AuthenticatedLayout'
 import CustomDropdown from '../../components/CustomDropdown'
+import ConfirmationModal from '../../components/modals/ConfirmationModal'
+import { useSnackbar } from '../../hooks/useSnackbar'
+import { useModal } from '../../hooks/useModal'
 
 interface User {
   id: string
   name: string | null
   email: string
+  defaultHourlyRate: number | null
 }
 
 interface Membership {
@@ -29,9 +33,15 @@ interface Organization {
 
 export default function Organization() {
   const router = useRouter()
+  const snackbar = useSnackbar()
+  const modal = useModal()
   const [organizations, setOrganizations] = useState<Organization[]>([])
   const [selectedOrgId, setSelectedOrgId] = useState<string>('')
   const [loading, setLoading] = useState(true)
+  const [editingMember, setEditingMember] = useState<{ id: string; field: 'role' | 'rate' } | null>(null)
+  const [newRole, setNewRole] = useState<string>('')
+  const [newRate, setNewRate] = useState<string>('')
+  const [actionLoading, setActionLoading] = useState(false)
 
   useEffect(() => {
     fetchOrganizations()
@@ -49,6 +59,98 @@ export default function Organization() {
       console.error('Error fetching organizations:', error)
     } finally {
       setLoading(false)
+    }
+  }
+
+  const handleRemoveMember = (membershipId: string, memberName: string) => {
+    const confirmRemoveMember = async () => {
+      setActionLoading(true)
+      try {
+        const response = await fetch('/api/organization/members', {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ membershipId })
+        })
+
+        if (response.ok) {
+          snackbar.success(`${memberName} has been removed from the organization`)
+          fetchOrganizations()
+          modal.hide('confirm-remove-member')
+        } else {
+          const data = await response.json()
+          snackbar.error(data.error || 'Failed to remove member')
+        }
+      } catch (error) {
+        console.error('Error removing member:', error)
+        snackbar.error('Failed to remove member')
+      } finally {
+        setActionLoading(false)
+      }
+    }
+
+    modal.show(
+      'confirm-remove-member',
+      ConfirmationModal,
+      {
+        title: 'Remove Team Member',
+        message: `Are you sure you want to remove ${memberName} from this organization? This action cannot be undone and they will lose access to all organization data.`,
+        confirmText: 'Remove Member',
+        cancelText: 'Cancel',
+        variant: 'danger',
+        loading: actionLoading,
+        onConfirm: confirmRemoveMember,
+        onClose: () => modal.hide('confirm-remove-member')
+      },
+      {
+        size: 'sm',
+        backdropClick: 'close'
+      }
+    )
+  }
+
+  const updateMemberRole = async (membershipId: string, role: string) => {
+    try {
+      const response = await fetch('/api/organization/members', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ membershipId, role })
+      })
+
+      if (response.ok) {
+        snackbar.success(`Member role updated to ${role}`)
+        fetchOrganizations()
+        setEditingMember(null)
+        setNewRole('')
+      } else {
+        const data = await response.json()
+        snackbar.error(data.error || 'Failed to update member role')
+      }
+    } catch (error) {
+      console.error('Error updating member role:', error)
+      snackbar.error('Failed to update member role')
+    }
+  }
+
+  const updateMemberRate = async (userId: string, rate: number) => {
+    try {
+      const response = await fetch('/api/organization/members', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId, defaultHourlyRate: rate })
+      })
+
+      if (response.ok) {
+        snackbar.success(`Hourly rate updated to $${rate.toFixed(2)}/hr`)
+        fetchOrganizations()
+        setEditingMember(null)
+        setNewRate('')
+      } else {
+        const data = await response.json()
+        snackbar.error(data.error || 'Failed to update hourly rate')
+      }
+    } catch (error) {
+      console.error('Error updating member rate:', error)
+      snackbar.error('Failed to update hourly rate')
     }
   }
 
@@ -158,41 +260,148 @@ export default function Organization() {
                       {selectedOrg.memberships.map((membership) => (
                         <div key={membership.id} className="bg-gradient-to-r from-slate-50 to-slate-100/50 rounded-2xl p-6 border border-slate-200/50 hover:shadow-lg transition-all duration-200">
                           <div className="flex items-center justify-between">
-                            <div className="flex items-center space-x-4">
+                            <div className="flex items-center space-x-4 flex-1">
                               <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center">
                                 <span className="text-white font-bold text-lg">
                                   {(membership.user.name || membership.user.email).charAt(0).toUpperCase()}
                                 </span>
                               </div>
-                              <div>
+                              <div className="flex-1">
                                 <div className="text-lg font-bold text-slate-900">
                                   {membership.user.name || 'No name'}
                                 </div>
                                 <div className="text-sm text-slate-600">{membership.user.email}</div>
-                                <div className="flex items-center space-x-2 mt-1">
-                                  <span className={`inline-flex items-center px-2 py-1 text-xs font-semibold rounded-lg ${
-                                    membership.role === 'ADMIN' 
-                                      ? 'bg-purple-100 text-purple-800' 
-                                      : 'bg-green-100 text-green-800'
-                                  }`}>
-                                    {membership.role}
-                                  </span>
+                                <div className="flex items-center space-x-2 mt-1 flex-wrap gap-2">
+                                  {editingMember?.id === membership.id && editingMember?.field === 'role' ? (
+                                    <div className="flex items-center space-x-2">
+                                      <select
+                                        value={newRole}
+                                        onChange={(e) => setNewRole(e.target.value)}
+                                        className="px-2 py-1 text-xs font-semibold rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                                      >
+                                        <option value="">Select role</option>
+                                        <option value="ADMIN">ADMIN</option>
+                                        <option value="EMPLOYEE">EMPLOYEE</option>
+                                      </select>
+                                      <button
+                                        onClick={() => updateMemberRole(membership.id, newRole)}
+                                        className="px-2 py-1 text-xs bg-green-500 text-white rounded hover:bg-green-600"
+                                        disabled={!newRole}
+                                      >
+                                        Save
+                                      </button>
+                                      <button
+                                        onClick={() => {
+                                          setEditingMember(null)
+                                          setNewRole('')
+                                        }}
+                                        className="px-2 py-1 text-xs bg-gray-500 text-white rounded hover:bg-gray-600"
+                                      >
+                                        Cancel
+                                      </button>
+                                    </div>
+                                  ) : (
+                                    <button
+                                      onClick={() => {
+                                        if (selectedOrg.isAdmin) {
+                                          setEditingMember({ id: membership.id, field: 'role' })
+                                          setNewRole(membership.role)
+                                        }
+                                      }}
+                                      className={`inline-flex items-center px-2 py-1 text-xs font-semibold rounded-lg ${
+                                        membership.role === 'ADMIN' 
+                                          ? 'bg-purple-100 text-purple-800 border-purple-200' 
+                                          : 'bg-green-100 text-green-800 border-green-200'
+                                      } ${selectedOrg.isAdmin ? 'hover:bg-opacity-80 cursor-pointer border border-dashed hover:border-solid transition-all' : 'border border-transparent'}`}
+                                      disabled={!selectedOrg.isAdmin}
+                                      title={selectedOrg.isAdmin ? '✏️ Click to change role' : ''}
+                                    >
+                                      {selectedOrg.isAdmin && (
+                                        <svg className="w-3 h-3 mr-1 opacity-60" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                        </svg>
+                                      )}
+                                      {membership.role}
+                                    </button>
+                                  )}
+                                  
                                   <span className="text-xs text-slate-500">
                                     Joined {new Date(membership.joinedAt).toLocaleDateString()}
                                   </span>
+                                  
+                                  {selectedOrg.isAdmin && (
+                                    <div className="flex items-center space-x-1">
+                                      {editingMember?.id === membership.id && editingMember?.field === 'rate' ? (
+                                        <div className="flex items-center space-x-1">
+                                          <span className="text-xs text-slate-500">$</span>
+                                          <input
+                                            type="number"
+                                            value={newRate}
+                                            onChange={(e) => setNewRate(e.target.value)}
+                                            placeholder="25.00"
+                                            className="w-16 px-1 py-1 text-xs rounded border border-slate-300 focus:outline-none focus:ring-1 focus:ring-purple-500"
+                                            step="0.01"
+                                            min="0"
+                                          />
+                                          <span className="text-xs text-slate-500">/hr</span>
+                                          <button
+                                            onClick={() => updateMemberRate(membership.user.id, parseFloat(newRate))}
+                                            className="px-1 py-1 text-xs bg-green-500 text-white rounded hover:bg-green-600"
+                                            disabled={!newRate || isNaN(parseFloat(newRate))}
+                                          >
+                                            ✓
+                                          </button>
+                                          <button
+                                            onClick={() => {
+                                              setEditingMember(null)
+                                              setNewRate('')
+                                            }}
+                                            className="px-1 py-1 text-xs bg-gray-500 text-white rounded hover:bg-gray-600"
+                                          >
+                                            ✗
+                                          </button>
+                                        </div>
+                                      ) : (
+                                        <button
+                                          onClick={() => {
+                                            setEditingMember({ id: membership.id, field: 'rate' })
+                                            setNewRate(membership.user.defaultHourlyRate?.toString() || '')
+                                          }}
+                                          className="inline-flex items-center px-2 py-1 text-xs bg-blue-100 text-blue-800 rounded-lg hover:bg-blue-200 cursor-pointer border border-dashed border-blue-200 hover:border-solid transition-all"
+                                          title="💰 Click to change hourly rate"
+                                        >
+                                          <svg className="w-3 h-3 mr-1 opacity-60" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                          </svg>
+                                          ${membership.user.defaultHourlyRate || '25.00'}/hr
+                                        </button>
+                                      )}
+                                    </div>
+                                  )}
                                 </div>
                               </div>
                             </div>
                             {selectedOrg.isAdmin && (
-                              <button
-                                onClick={() => router.push(`/timesheet?userId=${membership.user.id}`)}
-                                className="inline-flex items-center px-4 py-2 text-sm font-semibold text-purple-600 hover:text-white bg-purple-100 hover:bg-purple-600 rounded-xl transition-all duration-200 border border-purple-200 hover:border-purple-600 cursor-pointer"
-                              >
-                                <svg className="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                                </svg>
-                                View Timesheet
-                              </button>
+                              <div className="flex items-center space-x-2">
+                                <button
+                                  onClick={() => router.push(`/timesheet?userId=${membership.user.id}`)}
+                                  className="inline-flex items-center px-3 py-2 text-sm font-semibold text-purple-600 hover:text-white bg-purple-100 hover:bg-purple-600 rounded-xl transition-all duration-200 border border-purple-200 hover:border-purple-600 cursor-pointer"
+                                >
+                                  <svg className="w-4 h-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                  </svg>
+                                  Timesheet
+                                </button>
+                                <button
+                                  onClick={() => handleRemoveMember(membership.id, membership.user.name || membership.user.email)}
+                                  className="inline-flex items-center px-3 py-2 text-sm font-semibold text-red-600 hover:text-white bg-red-100 hover:bg-red-600 rounded-xl transition-all duration-200 border border-red-200 hover:border-red-600 cursor-pointer"
+                                  title="Remove member"
+                                >
+                                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                  </svg>
+                                </button>
+                              </div>
                             )}
                           </div>
                         </div>

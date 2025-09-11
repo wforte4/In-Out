@@ -3,8 +3,10 @@ import { NextRequest, NextResponse } from 'next/server'
 const { getServerSession } = require('next-auth')
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { auditAdmin } from '@/lib/audit'
+import { withRateLimit } from '@/lib/rateLimit'
 
-export async function POST(request: NextRequest) {
+async function handleReportsRequest(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions)
 
@@ -158,9 +160,27 @@ export async function POST(request: NextRequest) {
       timeEntries: formattedTimeEntries,
     }
 
+    // Audit log the data export
+    await auditAdmin.dataExport(
+      session.user.id,
+      'Time Report',
+      {
+        organizationId,
+        startDate,
+        endDate,
+        recordCount: timeEntries.length,
+        totalHours,
+        totalCost
+      },
+      organizationId,
+      request
+    )
+
     return NextResponse.json(reportData)
   } catch (error) {
     console.error('Error generating report:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }
+
+export const POST = withRateLimit(handleReportsRequest, 'reports')

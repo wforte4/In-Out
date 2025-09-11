@@ -2,98 +2,55 @@
 
 import { useEffect, useState } from 'react'
 import { useSession } from 'next-auth/react'
+import { useRouter } from 'next/navigation'
 import { motion } from 'framer-motion'
 import {
-  ExclamationTriangleIcon,
   UsersIcon,
   ClockIcon,
   CurrencyDollarIcon,
-  FolderIcon
+  FolderIcon,
+  DocumentChartBarIcon,
+  EllipsisHorizontalIcon,
+  ShieldCheckIcon
 } from '@heroicons/react/24/outline'
 import AuthenticatedLayout from '../../components/AuthenticatedLayout'
 import SearchableSelect from '../../components/SearchableSelect'
+import MetricCard from '../../components/dashboard/MetricCard'
+import WeeklyActivity from '../../components/dashboard/WeeklyActivity'
+import TopPerformers from '../../components/dashboard/TopPerformers'
+import ProjectPerformanceTable from '../../components/dashboard/ProjectPerformanceTable'
+import RecentActivity from '../../components/dashboard/RecentActivity'
 import { useSnackbar } from '../../hooks/useSnackbar'
-
-interface Organization {
-  id: string
-  name: string
-  userRole: string
-  isAdmin: boolean
-  memberCount: number
-  createdAt: string
-}
-
-interface DashboardMetrics {
-  totalUsers: number
-  activeUsers: number
-  totalProjects: number
-  activeProjects: number
-  totalHours: number
-  totalCost: number
-  avgHoursPerUser: number
-  topPerformers: Array<{
-    userId: string
-    userName: string
-    userEmail: string
-    hours: number
-    cost: number
-  }>
-  recentActivity: Array<{
-    id: string
-    type: 'time_entry' | 'project_created' | 'user_joined' | 'admin_action'
-    description: string
-    user: {
-      name: string | null
-      email: string
-    }
-    timestamp: string
-  }>
-  hourlyTrends: Array<{
-    hour: number
-    count: number
-  }>
-  projectStats: Array<{
-    projectId: string
-    projectName: string
-    hours: number
-    cost: number
-    contributors: number
-    completion: number
-  }>
-  weeklyActivity: Array<{
-    day: string
-    hours: number
-    entries: number
-  }>
-  dateRange: {
-    startDate: string
-    endDate: string
-    timeRange: string
-  }
-}
+import { adminService, type DashboardMetrics, type Organization } from '../../services/adminService'
 
 export default function AdminDashboard() {
   const { data: session } = useSession()
+  const router = useRouter()
   const snackbar = useSnackbar()
   const [organizations, setOrganizations] = useState<Organization[]>([])
   const [selectedOrgId, setSelectedOrgId] = useState<string>('')
   const [metrics, setMetrics] = useState<DashboardMetrics | null>(null)
   const [loading, setLoading] = useState(true)
+  const [hasAdminAccess, setHasAdminAccess] = useState(true) // Start with true to prevent flash
   const [timeRange, setTimeRange] = useState<'week' | 'month' | 'quarter'>('month')
+  const [showAdminMenu, setShowAdminMenu] = useState(false)
 
   const fetchOrganizations = async () => {
     try {
-      const response = await fetch('/api/organization/members')
-      const data = await response.json()
-      if (response.ok && data.organizations) {
-        const adminOrgs = data.organizations.filter((org: Organization) => org.isAdmin)
-        setOrganizations(adminOrgs)
-        if (adminOrgs.length === 1) {
-          setSelectedOrgId(adminOrgs[0].id)
-        }
+      const adminOrgs = await adminService.fetchOrganizations()
+      setOrganizations(adminOrgs)
+      setHasAdminAccess(adminOrgs.length > 0)
+      if (adminOrgs.length === 1) {
+        setSelectedOrgId(adminOrgs[0].id)
+      } else if (adminOrgs.length === 0) {
+        // No admin access, redirect silently
+        router.push('/dashboard')
+        return
       }
     } catch (error) {
       console.error('Error fetching organizations:', error)
+      snackbar.error('Failed to load organizations')
+      router.push('/dashboard')
     }
   }
 
@@ -102,57 +59,65 @@ export default function AdminDashboard() {
 
     setLoading(true)
     try {
-      const response = await fetch('/api/admin/dashboard', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          organizationId: selectedOrgId,
-          timeRange
-        })
-      })
-
-      const data = await response.json()
-      if (response.ok) {
-        setMetrics(data)
-      } else {
-        snackbar.error(data.error || 'Failed to load dashboard metrics')
-      }
+      const dashboardMetrics = await adminService.fetchDashboardMetrics(selectedOrgId, timeRange)
+      setMetrics(dashboardMetrics)
     } catch (error) {
       console.error('Error fetching dashboard metrics:', error)
       snackbar.error('Failed to load dashboard metrics')
+    } finally {
+      setLoading(false)
     }
-    setLoading(false)
   }
 
   useEffect(() => {
-    fetchOrganizations()
-  }, [])
+    if (session) {
+      fetchOrganizations()
+    }
+  }, [session])
 
   useEffect(() => {
-    if (selectedOrgId) {
-      fetchDashboardMetrics()
-    }
+    fetchDashboardMetrics()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedOrgId, timeRange])
 
-  if (!session) {
-    return <AuthenticatedLayout><div>Loading...</div></AuthenticatedLayout>
+  // Close admin menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as HTMLElement
+      if (showAdminMenu && !target.closest('[data-admin-menu]')) {
+        setShowAdminMenu(false)
+      }
+    }
+
+    document.addEventListener('click', handleClickOutside)
+    return () => document.removeEventListener('click', handleClickOutside)
+  }, [showAdminMenu])
+
+  const getDateRangeText = () => {
+    const now = new Date()
+    switch (timeRange) {
+      case 'week':
+        const weekStart = new Date(now)
+        weekStart.setDate(now.getDate() - now.getDay())
+        const weekEnd = new Date(weekStart)
+        weekEnd.setDate(weekStart.getDate() + 6)
+        return `${weekStart.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - ${weekEnd.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`
+      case 'month':
+        return now.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
+      case 'quarter':
+        const quarter = Math.floor(now.getMonth() / 3) + 1
+        return `Q${quarter} ${now.getFullYear()}`
+      default:
+        return ''
+    }
   }
 
-  if (organizations.length === 0) {
+  if (loading && !metrics) {
     return (
       <AuthenticatedLayout>
         <div className="max-w-7xl mx-auto py-8 sm:px-6 lg:px-8">
-          <div className="px-4 py-6 sm:px-0">
-            <div className="bg-amber-50 border border-amber-200 rounded-2xl p-6">
-              <div className="flex items-center space-x-3">
-                <ExclamationTriangleIcon className="w-5 h-5 text-amber-600" />
-                <div>
-                  <h3 className="text-lg font-semibold text-amber-900">Admin Access Required</h3>
-                  <p className="text-amber-700">You need admin access to an organization to view the dashboard.</p>
-                </div>
-              </div>
-            </div>
+          <div className="flex items-center justify-center py-12">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600"></div>
           </div>
         </div>
       </AuthenticatedLayout>
@@ -164,255 +129,145 @@ export default function AdminDashboard() {
       <div className="max-w-7xl mx-auto py-8 sm:px-6 lg:px-8">
         <div className="px-4 py-6 sm:px-0">
           {/* Header */}
-          <motion.div
-            className="flex items-center justify-between mb-8"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5 }}
-          >
-            <div>
-              <h1 className="text-3xl font-bold text-slate-900">Admin Dashboard</h1>
-              <p className="text-slate-600 mt-2">Monitor your organization&apos;s performance and activity</p>
-              {metrics?.dateRange && (
-                <p className="text-slate-500 text-sm mt-1">
-                  Data from {new Date(metrics.dateRange.startDate).toLocaleDateString()} to {new Date(metrics.dateRange.endDate).toLocaleDateString()}
-                </p>
-              )}
-            </div>
-            <div className="flex items-center space-x-4">
-              {/* Time Range Selector */}
-              <div className="bg-white rounded-xl border border-slate-200 p-1">
-                {(['week', 'month', 'quarter'] as const).map((range) => (
+          <div className="mb-8">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6">
+              <div>
+                <h1 className="text-3xl font-bold text-slate-900">Admin Dashboard</h1>
+                <p className="text-slate-600 mt-2">Overview and analytics for {getDateRangeText()}</p>
+              </div>
+              <div className="flex flex-col sm:flex-row gap-4 mt-4 sm:mt-0">
+                <div className="flex items-center gap-2">
                   <button
-                    key={range}
-                    onClick={() => setTimeRange(range)}
-                    className={`px-3 py-1.5 text-sm font-medium rounded-lg transition-colors duration-200 ${timeRange === range
-                        ? 'bg-purple-600 text-white shadow-sm'
-                        : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-                      }`}
+                    onClick={() => router.push('/reports')}
+                    className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-purple-600 to-blue-600 text-white text-sm font-medium rounded-lg hover:from-purple-700 hover:to-blue-700 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
                   >
-                    {range.charAt(0).toUpperCase() + range.slice(1)}
+                    <DocumentChartBarIcon className="w-4 h-4 mr-2" />
+                    Advanced Reports
                   </button>
-                ))}
-              </div>
-            </div>
-          </motion.div>
-
-          {/* Organization Selector */}
-          {organizations.length > 1 && (
-            <motion.div
-              className="bg-white/70 backdrop-blur-sm shadow-lg rounded-2xl border border-slate-200/50 p-6 mb-8"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5, delay: 0.1 }}
-            >
-              <h3 className="text-lg font-semibold text-slate-900 mb-4">Select Organization</h3>
-              <SearchableSelect
-                value={selectedOrgId}
-                onChange={setSelectedOrgId}
-                options={organizations.map(org => ({
-                  value: org.id,
-                  label: `${org.name} (${org.memberCount} members)`
-                }))}
-                placeholder="Choose an organization..."
-              />
-            </motion.div>
-          )}
-
-          {loading && selectedOrgId ? (
-            <div className="flex items-center justify-center py-12">
-              <div className="flex items-center space-x-3">
-                <div className="w-8 h-8 bg-gradient-to-br from-purple-600 to-blue-600 rounded-lg animate-pulse"></div>
-                <span className="text-slate-600 font-medium">Loading dashboard...</span>
-              </div>
-            </div>
-          ) : metrics && selectedOrgId ? (
-            <div className="space-y-8">
-              {/* Key Metrics Cards */}
-              <motion.div
-                className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6"
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.5, delay: 0.2 }}
-              >
-                <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl p-6 text-white">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-blue-100 text-sm font-medium">Total Users</p>
-                      <p className="text-3xl font-bold">{metrics.totalUsers}</p>
-                      <p className="text-blue-200 text-xs mt-1">{metrics.activeUsers} active</p>
-                    </div>
-                    <UsersIcon className="w-10 h-10 text-blue-200" />
-                  </div>
-                </div>
-
-                <div className="bg-gradient-to-br from-green-500 to-green-600 rounded-2xl p-6 text-white">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-green-100 text-sm font-medium">Total Hours</p>
-                      <p className="text-3xl font-bold">{metrics.totalHours.toFixed(0)}</p>
-                      <p className="text-green-200 text-xs mt-1">{metrics.avgHoursPerUser.toFixed(1)} avg/user</p>
-                    </div>
-                    <ClockIcon className="w-10 h-10 text-green-200" />
-                  </div>
-                </div>
-
-                <div className="bg-gradient-to-br from-purple-500 to-purple-600 rounded-2xl p-6 text-white">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-purple-100 text-sm font-medium">Total Revenue</p>
-                      <p className="text-3xl font-bold">${metrics.totalCost.toFixed(0)}</p>
-                      <p className="text-purple-200 text-xs mt-1">${(metrics.totalCost / metrics.totalHours).toFixed(0)}/hr avg</p>
-                    </div>
-                    <CurrencyDollarIcon className="w-10 h-10 text-purple-200" />
-                  </div>
-                </div>
-
-                <div className="bg-gradient-to-br from-orange-500 to-orange-600 rounded-2xl p-6 text-white">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-orange-100 text-sm font-medium">Active Projects</p>
-                      <p className="text-3xl font-bold">{metrics.activeProjects}</p>
-                      <p className="text-orange-200 text-xs mt-1">of {metrics.totalProjects} total</p>
-                    </div>
-                    <FolderIcon className="w-10 h-10 text-orange-200" />
-                  </div>
-                </div>
-              </motion.div>
-
-              {/* Charts and Analytics Row */}
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                {/* Weekly Activity Chart */}
-                <motion.div
-                  className="bg-white/70 backdrop-blur-sm shadow-xl rounded-2xl border border-slate-200/50 p-6"
-                  initial={{ opacity: 0, x: -20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ duration: 0.5, delay: 0.3 }}
-                >
-                  <h3 className="text-lg font-semibold text-slate-900 mb-4">Weekly Activity</h3>
-                  <div className="space-y-3">
-                    {metrics.weeklyActivity.map((day, index) => (
-                      <div key={day.day} className="flex items-center justify-between">
-                        <span className="text-sm font-medium text-slate-700 w-16">{day.day}</span>
-                        <div className="flex-1 mx-4">
-                          <div className="bg-slate-200 rounded-full h-2">
-                            <motion.div
-                              className="bg-gradient-to-r from-purple-500 to-blue-500 h-2 rounded-full"
-                              initial={{ width: 0 }}
-                              animate={{ width: `${Math.min((day.hours / Math.max(...metrics.weeklyActivity.map(d => d.hours))) * 100, 100)}%` }}
-                              transition={{ duration: 0.8, delay: 0.5 + index * 0.1 }}
-                            />
-                          </div>
-                        </div>
-                        <span className="text-sm text-slate-600 w-12 text-right">{day.hours.toFixed(1)}h</span>
+                  
+                  {/* Admin Menu */}
+                  <div className="relative" data-admin-menu>
+                    <button
+                      onClick={() => setShowAdminMenu(!showAdminMenu)}
+                      className="p-2 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-100 transition-colors"
+                      title="Admin Tools"
+                    >
+                      <EllipsisHorizontalIcon className="w-5 h-5" />
+                    </button>
+                    
+                    {showAdminMenu && (
+                      <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-slate-200 py-1 z-50">
+                        <button
+                          onClick={() => {
+                            router.push('/admin/audit-logs')
+                            setShowAdminMenu(false)
+                          }}
+                          className="w-full px-4 py-2 text-left text-sm text-slate-700 hover:bg-slate-50 flex items-center"
+                        >
+                          <ShieldCheckIcon className="w-4 h-4 mr-3 text-slate-400" />
+                          Audit Logs
+                        </button>
                       </div>
-                    ))}
+                    )}
                   </div>
-                </motion.div>
-
-                {/* Top Performers */}
-                <motion.div
-                  className="bg-white/70 backdrop-blur-sm shadow-xl rounded-2xl border border-slate-200/50 p-6"
-                  initial={{ opacity: 0, x: 20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ duration: 0.5, delay: 0.4 }}
-                >
-                  <h3 className="text-lg font-semibold text-slate-900 mb-4">Top Performers</h3>
-                  <div className="space-y-3">
-                    {metrics.topPerformers.slice(0, 5).map((performer, index) => (
-                      <div key={performer.userId} className="flex items-center space-x-3">
-                        <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white text-sm font-bold ${index === 0 ? 'bg-yellow-500' : index === 1 ? 'bg-gray-400' : index === 2 ? 'bg-orange-600' : 'bg-slate-400'
-                          }`}>
-                          {index + 1}
-                        </div>
-                        <div className="flex-1">
-                          <p className="font-medium text-slate-900">{performer.userName || performer.userEmail}</p>
-                          <p className="text-sm text-slate-600">{performer.hours.toFixed(1)}h • ${performer.cost.toFixed(0)}</p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </motion.div>
-              </div>
-
-              {/* Project Stats & Recent Activity */}
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                {/* Project Performance */}
-                <motion.div
-                  className="lg:col-span-2 bg-white/70 backdrop-blur-sm shadow-xl rounded-2xl border border-slate-200/50 p-6"
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.5, delay: 0.5 }}
-                >
-                  <h3 className="text-lg font-semibold text-slate-900 mb-4">Project Performance</h3>
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-sm">
-                      <thead>
-                        <tr className="border-b border-slate-200">
-                          <th className="text-left py-2 font-medium text-slate-900">Project</th>
-                          <th className="text-right py-2 font-medium text-slate-900">Hours</th>
-                          <th className="text-right py-2 font-medium text-slate-900">Revenue</th>
-                          <th className="text-right py-2 font-medium text-slate-900">Team</th>
-                          <th className="text-right py-2 font-medium text-slate-900">Progress</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {metrics.projectStats.slice(0, 8).map((project) => (
-                          <tr key={project.projectId} className="border-b border-slate-100">
-                            <td className="py-2 text-slate-800 font-medium">{project.projectName}</td>
-                            <td className="text-right py-2 text-slate-800">{project.hours.toFixed(1)}</td>
-                            <td className="text-right py-2 text-slate-800 font-semibold">${project.cost.toFixed(0)}</td>
-                            <td className="text-right py-2 text-slate-800">{project.contributors}</td>
-                            <td className="text-right py-2">
-                              <span className={`inline-flex px-2 py-1 rounded-full text-xs font-medium ${project.completion >= 100 ? 'bg-green-100 text-green-800' :
-                                  project.completion >= 75 ? 'bg-blue-100 text-blue-800' :
-                                    project.completion >= 50 ? 'bg-yellow-100 text-yellow-800' :
-                                      'bg-slate-100 text-slate-800'
-                                }`}>
-                                {project.completion.toFixed(0)}%
-                              </span>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </motion.div>
-
-                {/* Recent Activity */}
-                <motion.div
-                  className="bg-white/70 backdrop-blur-sm shadow-xl rounded-2xl border border-slate-200/50 p-6"
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.5, delay: 0.6 }}
-                >
-                  <h3 className="text-lg font-semibold text-slate-900 mb-4">Recent Activity</h3>
-                  <div className="space-y-3">
-                    {metrics.recentActivity.slice(0, 8).map((activity) => (
-                      <div key={activity.id} className="flex items-start space-x-3">
-                        <div className={`w-2 h-2 rounded-full mt-2 ${activity.type === 'time_entry' ? 'bg-green-500' :
-                            activity.type === 'project_created' ? 'bg-blue-500' :
-                              activity.type === 'user_joined' ? 'bg-purple-500' :
-                                'bg-orange-500'
-                          }`} />
-                        <div className="flex-1">
-                          <p className="text-sm text-slate-800">{activity.description}</p>
-                          <p className="text-xs text-slate-500">{new Date(activity.timestamp).toLocaleString()}</p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </motion.div>
+                </div>
+                
+                {organizations.length > 1 && (
+                  <SearchableSelect
+                    value={selectedOrgId}
+                    onChange={(value) => setSelectedOrgId(value as string)}
+                    options={organizations.map(org => ({
+                      value: org.id,
+                      label: org.name
+                    }))}
+                    placeholder="Select organization..."
+                    className="w-full sm:w-64"
+                  />
+                )}
+                
+                {/* Time Range Slider */}
+                <div className="flex items-center space-x-1 bg-slate-100 rounded-lg p-1">
+                  {(['week', 'month', 'quarter'] as const).map((range) => (
+                    <button
+                      key={range}
+                      onClick={() => setTimeRange(range)}
+                      className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors duration-200 ${
+                        timeRange === range
+                          ? 'bg-white text-slate-900 shadow-sm'
+                          : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200'
+                      }`}
+                    >
+                      {range.charAt(0).toUpperCase() + range.slice(1)}
+                    </button>
+                  ))}
+                </div>
               </div>
             </div>
-          ) : selectedOrgId ? (
-            <div className="text-center py-12">
-              <p className="text-slate-500">No data available for the selected time range.</p>
-            </div>
-          ) : (
+          </div>
+
+          {!selectedOrgId ? (
             <div className="text-center py-12">
               <p className="text-slate-500">Please select an organization to view the dashboard.</p>
             </div>
+          ) : !metrics ? (
+            <div className="flex items-center justify-center py-12">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600"></div>
+            </div>
+          ) : (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5 }}
+              className="space-y-8"
+            >
+              {/* Metrics Cards */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                <MetricCard
+                  title="Total Hours"
+                  value={(metrics.totalHours ?? 0).toFixed(1)}
+                  subtitle="hours logged"
+                  gradient="from-blue-500 to-blue-600"
+                  textColor="text-white"
+                  icon={<ClockIcon className="w-6 h-6" />}
+                />
+                <MetricCard
+                  title="Revenue"
+                  value={`$${(metrics.totalCost ?? 0).toFixed(0)}`}
+                  subtitle="this period"
+                  gradient="from-green-500 to-green-600"
+                  textColor="text-white"
+                  icon={<CurrencyDollarIcon className="w-6 h-6" />}
+                />
+                <MetricCard
+                  title="Active Users"
+                  value={(metrics.activeUsers ?? 0).toString()}
+                  subtitle="team members"
+                  gradient="from-purple-500 to-purple-600"
+                  textColor="text-white"
+                  icon={<UsersIcon className="w-6 h-6" />}
+                />
+                <MetricCard
+                  title="Projects"
+                  value={(metrics.activeProjects ?? 0).toString()}
+                  subtitle="in progress"
+                  gradient="from-orange-500 to-orange-600"
+                  textColor="text-white"
+                  icon={<FolderIcon className="w-6 h-6" />}
+                />
+              </div>
+
+              {/* Weekly Activity & Top Performers */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                <WeeklyActivity data={metrics.weeklyActivity ?? []} />
+                <TopPerformers performers={metrics.topPerformers ?? []} />
+              </div>
+
+              {/* Project Performance & Recent Activity */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                <ProjectPerformanceTable projects={metrics.projectStats ?? []} />
+                <RecentActivity activities={metrics.recentActivity ?? []} />
+              </div>
+            </motion.div>
           )}
         </div>
       </div>

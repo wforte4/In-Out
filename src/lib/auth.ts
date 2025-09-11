@@ -7,6 +7,8 @@ export const authOptions = {
   adapter: PrismaAdapter(prisma),
   session: {
     strategy: 'jwt',
+    maxAge: 8 * 60 * 60, // 8 hours
+    updateAge: 60 * 60, // 1 hour - update session if older than 1 hour
   },
   providers: [
     CredentialsProvider({
@@ -37,6 +39,12 @@ export const authOptions = {
 
         if (!isPasswordValid) {
           return null
+        }
+
+        // Check if email is verified
+        if (!user.emailVerified) {
+          // Return a special error to handle in the frontend
+          throw new Error('EMAIL_NOT_VERIFIED')
         }
 
         return {
@@ -77,7 +85,21 @@ export const authOptions = {
         token.name = user.name;
         token.email = user.email;
         token.image = user.image;
+        token.lastActivity = Date.now();
       }
+      
+      // Check for session timeout (8 hours of inactivity)
+      const now = Date.now();
+      const lastActivity = token.lastActivity || now;
+      const sessionTimeout = 8 * 60 * 60 * 1000; // 8 hours in milliseconds
+      
+      if (now - lastActivity > sessionTimeout) {
+        // Session expired, return null to force re-authentication
+        return null;
+      }
+      
+      // Update last activity timestamp on each token refresh
+      token.lastActivity = now;
       return token;
     },
   },

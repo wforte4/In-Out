@@ -93,7 +93,7 @@ export default function CustomDropdown({
       <div className={`relative ${className}`} ref={dropdownRef}>
         <button
           type="button"
-          className={`w-full px-4 py-2 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all duration-200 bg-white text-slate-900 text-left flex items-center justify-between ${disabled ? 'bg-slate-50 cursor-not-allowed opacity-60' : 'hover:border-slate-400 cursor-pointer'
+          className={`w-full px-4 py-3 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all duration-200 bg-white text-slate-900 text-left flex items-center justify-between ${disabled ? 'bg-slate-50 cursor-not-allowed opacity-60' : 'hover:border-slate-400 cursor-pointer'
             }`}
           onClick={() => !disabled && setIsOpen(!isOpen)}
           onKeyDown={handleKeyDown}

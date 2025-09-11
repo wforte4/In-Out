@@ -190,6 +190,108 @@ This reminder was sent by InAndOut for ${organizationName}.
   }
 }
 
+export async function sendEmailVerificationEmail(
+  email: string,
+  verificationToken: string,
+  userName: string
+) {
+  const baseUrl = process.env.NEXTAUTH_URL || 'http://localhost:3000'
+  const verificationUrl = `${baseUrl}/auth/verify-email?token=${verificationToken}`
+
+  const emailData = {
+    from: 'info@inandout.work',
+    to: email,
+    subject: 'Verify Your Email Address - InAndOut',
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f9fafb;">
+        <div style="background: white; border-radius: 16px; padding: 32px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">
+          <div style="text-align: center; margin-bottom: 32px;">
+            <h1 style="color: #1f2937; font-size: 28px; font-weight: bold; margin: 0;">
+              Verify Your Email Address
+            </h1>
+          </div>
+          
+          <div style="margin-bottom: 24px;">
+            <p style="color: #4b5563; font-size: 16px; line-height: 1.6; margin: 0 0 16px 0;">
+              Hi ${userName},
+            </p>
+            
+            <p style="color: #4b5563; font-size: 16px; line-height: 1.6; margin: 0 0 16px 0;">
+              Thanks for signing up for InAndOut! To complete your registration and start using your account, please verify your email address.
+            </p>
+            
+            <p style="color: #4b5563; font-size: 16px; line-height: 1.6; margin: 0 0 16px 0;">
+              Click the button below to verify your email:
+            </p>
+          </div>
+
+          <div style="text-align: center; margin: 32px 0;">
+            <a href="${verificationUrl}" 
+               style="display: inline-block; background: linear-gradient(45deg, #10b981, #059669); color: white; text-decoration: none; padding: 16px 32px; border-radius: 12px; font-weight: 600; font-size: 16px;">
+              Verify Email Address
+            </a>
+          </div>
+
+          <div style="background: #ecfdf5; border-left: 4px solid #10b981; border-radius: 8px; padding: 16px; margin: 24px 0;">
+            <p style="color: #047857; font-size: 14px; margin: 0; font-weight: 500;">
+              ✅ Almost There!
+            </p>
+            <p style="color: #047857; font-size: 14px; margin: 8px 0 0 0;">
+              Once verified, you'll have full access to all InAndOut features including time tracking, team management, and reporting.
+            </p>
+          </div>
+
+          <div style="background: #f3f4f6; border-radius: 12px; padding: 16px; margin: 24px 0;">
+            <p style="color: #6b7280; font-size: 14px; margin: 0; text-align: center;">
+              If you can't click the button above, copy and paste this link into your browser:
+            </p>
+            <p style="color: #3b82f6; font-size: 14px; margin: 8px 0 0 0; text-align: center; word-break: break-all;">
+              ${verificationUrl}
+            </p>
+          </div>
+
+          <div style="border-top: 1px solid #e5e7eb; padding-top: 24px; margin-top: 32px;">
+            <p style="color: #9ca3af; font-size: 12px; text-align: center; margin: 0;">
+              This verification link will expire in 24 hours. If you didn't create an InAndOut account, you can safely ignore this email.
+            </p>
+          </div>
+        </div>
+      </div>
+    `,
+    text: `
+Verify Your Email Address
+
+Hi ${userName},
+
+Thanks for signing up for InAndOut! To complete your registration and start using your account, please verify your email address.
+
+Click this link to verify your email:
+${verificationUrl}
+
+Once verified, you'll have full access to all InAndOut features including time tracking, team management, and reporting.
+
+This verification link will expire in 24 hours.
+
+If you didn't create an InAndOut account, you can safely ignore this email.
+
+This email was sent by InAndOut.
+    `
+  }
+
+  try {
+    if (!process.env.MAILGUN_DOMAIN) {
+      return { success: false, error: 'MAILGUN_DOMAIN not configured' }
+    }
+
+    const mg = getMailgunClient()
+    const result = await mg.messages.create(process.env.MAILGUN_DOMAIN, emailData)
+    return { success: true, messageId: result.id }
+  } catch (error) {
+    console.error('Email verification send error:', error)
+    return { success: false, error }
+  }
+}
+
 export async function sendPasswordResetEmail(
   email: string,
   resetToken: string,

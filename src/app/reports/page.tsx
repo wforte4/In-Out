@@ -1,197 +1,241 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState } from 'react'
 import { useSession } from 'next-auth/react'
+import { useRouter } from 'next/navigation'
+import { motion } from 'framer-motion'
+import {
+  DocumentChartBarIcon,
+  ClockIcon,
+  CurrencyDollarIcon,
+  UserGroupIcon,
+  ArrowDownTrayIcon,
+  AdjustmentsHorizontalIcon
+} from '@heroicons/react/24/outline'
 import AuthenticatedLayout from '../../components/AuthenticatedLayout'
 import SearchableSelect from '../../components/SearchableSelect'
-import DateTimePicker from '../../components/DateTimePicker'
+import DateRangePicker, { type DateRange } from '../../components/DateRangePicker'
+import EmployeeMultiSelect from '../../components/EmployeeMultiSelect'
+import ProjectMultiSelect from '../../components/ProjectMultiSelect'
 import Button from '../../components/Button'
 import { useSnackbar } from '../../hooks/useSnackbar'
-
-interface Organization {
-  id: string
-  name: string
-  userRole: string
-  isAdmin: boolean
-}
-
-interface ReportData {
-  totalHours: number
-  totalCost: number
-  employeeBreakdown: Array<{
-    userId: string
-    userName: string
-    userEmail: string
-    hours: number
-    cost: number
-    entries: number
-  }>
-  projectBreakdown: Array<{
-    projectId: string
-    projectName: string
-    hours: number
-    cost: number
-    entries: number
-  }>
-  timeEntries: Array<{
-    id: string
-    clockIn: string
-    clockOut: string
-    totalHours: number
-    description: string
-    user: {
-      name: string | null
-      email: string
-    }
-    project?: {
-      id: string
-      name: string
-    } | null
-    hourlyRate: number | null
-    calculatedCost: number
-  }>
-}
-
-type ReportType = 'payroll' | 'project-costs' | 'time-summary' | 'detailed-timesheet'
-type ExportFormat = 'csv' | 'quickbooks'
+import { adminService, type Organization } from '../../services/adminService'
 
 export default function Reports() {
   const { data: session } = useSession()
+  const router = useRouter()
   const snackbar = useSnackbar()
   const [organizations, setOrganizations] = useState<Organization[]>([])
   const [selectedOrgId, setSelectedOrgId] = useState<string>('')
-  const [reportType, setReportType] = useState<ReportType>('time-summary')
-  const [startDate, setStartDate] = useState<Date | null>(null)
-  const [endDate, setEndDate] = useState<Date | null>(null)
-  const [reportData, setReportData] = useState<ReportData | null>(null)
-  const [loading, setLoading] = useState(false)
-  const [exporting, setExporting] = useState<ExportFormat | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [hasAdminAccess, setHasAdminAccess] = useState(true) // Start with true to prevent flash
+  const [timeRange, setTimeRange] = useState<'week' | 'month' | 'quarter'>('month')
+  const [generatingReport, setGeneratingReport] = useState<string | null>(null)
+  const [showCustomBuilder, setShowCustomBuilder] = useState(false)
+  const [selectedReportType, setSelectedReportType] = useState('')
+  const [dateRange, setDateRange] = useState<DateRange>({
+    startDate: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+    endDate: new Date().toISOString().split('T')[0]
+  })
+  const [selectedEmployees, setSelectedEmployees] = useState<string[]>([])
+  const [selectedProjects, setSelectedProjects] = useState<string[]>([])
+  const [reportData, setReportData] = useState<Record<string, unknown>[]>([])
+  const [showReportPreview, setShowReportPreview] = useState(false)
+  const [currentReportType, setCurrentReportType] = useState('')
+  const [reportFilters, setReportFilters] = useState<Record<string, unknown>>({})
 
-  const fetchOrganizations = useCallback(async () => {
+  const fetchOrganizations = async () => {
     try {
-      const response = await fetch('/api/organization/members')
-      const data = await response.json()
-      if (response.ok && data.organizations) {
-        const adminOrgs = data.organizations.filter((org: Organization) => org.isAdmin)
-        setOrganizations(adminOrgs)
-        if (adminOrgs.length === 1) {
-          setSelectedOrgId(adminOrgs[0].id)
-        }
+      const adminOrgs = await adminService.fetchOrganizations()
+      setOrganizations(adminOrgs)
+      setHasAdminAccess(adminOrgs.length > 0)
+      if (adminOrgs.length === 1) {
+        setSelectedOrgId(adminOrgs[0].id)
+      } else if (adminOrgs.length === 0) {
+        // Redirect silently without showing access denied message
+        router.push('/dashboard')
+        return
       }
     } catch (error) {
       console.error('Error fetching organizations:', error)
+      snackbar.error('Failed to load organizations')
+      router.push('/dashboard')
     }
-  }, [])
+    setLoading(false)
+  }
 
-  const generateReport = useCallback(async () => {
-    if (!selectedOrgId || !startDate || !endDate) {
-      snackbar.error('Please select organization and date range')
+  useEffect(() => {
+    if (session) {
+      fetchOrganizations()
+    }
+  }, [session])
+
+  const generateReportPreview = async (reportType: string, customFilters?: Record<string, unknown>) => {
+    if (!selectedOrgId) {
+      snackbar.error('Please select an organization first')
       return
     }
 
-    setLoading(true)
+    setGeneratingReport(reportType)
     try {
-      const response = await fetch('/api/reports', {
+      const filters = customFilters || {
+        timeRange: timeRange === 'week' ? 7 : timeRange === 'month' ? 30 : 90
+      }
+
+      const response = await fetch('/api/reports/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          reportId: reportType,
+          format: 'json', // Always get JSON for preview
           organizationId: selectedOrgId,
-          reportType,
-          startDate: startDate.toISOString(),
-          endDate: endDate.toISOString()
+          filters
         })
       })
 
-      const data = await response.json()
+      const result = await response.json()
+
       if (response.ok) {
+        const data = JSON.parse(result.downloadUrl.split(',')[1] || '[]')
         setReportData(data)
-        snackbar.success('Report generated successfully')
+        setCurrentReportType(reportType)
+        setReportFilters(filters)
+        setShowReportPreview(true)
+        setShowCustomBuilder(false)
+        snackbar.success(`Report generated with ${data.length} records`)
       } else {
-        snackbar.error(data.error || 'Failed to generate report')
+        snackbar.error(result.error || 'Failed to generate report')
       }
     } catch (error) {
       console.error('Error generating report:', error)
       snackbar.error('Failed to generate report')
+    } finally {
+      setGeneratingReport(null)
     }
-    setLoading(false)
-  }, [selectedOrgId, reportType, startDate, endDate, snackbar])
+  }
 
-  const exportReport = async (format: ExportFormat) => {
-    if (!reportData) return
+  const downloadReport = async (format: string) => {
+    if (!selectedOrgId || !currentReportType) {
+      snackbar.error('No report data available')
+      return
+    }
 
-    setExporting(format)
+    setGeneratingReport(currentReportType)
     try {
-      const response = await fetch('/api/reports/export', {
+      const response = await fetch('/api/reports/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          reportData,
+          reportId: currentReportType,
           format,
-          reportType,
           organizationId: selectedOrgId,
-          startDate: startDate?.toISOString(),
-          endDate: endDate?.toISOString()
+          filters: reportFilters
         })
       })
 
+      const data = await response.json()
+
       if (response.ok) {
-        const blob = await response.blob()
-        const url = window.URL.createObjectURL(blob)
-        const a = document.createElement('a')
-        a.href = url
-        a.download = `${reportType}-report-${new Date().toISOString().split('T')[0]}.${format === 'csv' ? 'csv' : 'iif'}`
-        document.body.appendChild(a)
-        a.click()
-        window.URL.revokeObjectURL(url)
-        document.body.removeChild(a)
-        snackbar.success(`Report exported as ${format.toUpperCase()}`)
+        // Trigger download
+        const link = document.createElement('a')
+        link.href = data.downloadUrl
+        link.download = data.fileName
+        document.body.appendChild(link)
+        link.click()
+        document.body.removeChild(link)
+
+        snackbar.success(`${format.toUpperCase()} report downloaded!`)
       } else {
-        snackbar.error('Failed to export report')
+        snackbar.error(data.error || 'Failed to download report')
       }
     } catch (error) {
-      console.error('Error exporting report:', error)
-      snackbar.error('Failed to export report')
+      console.error('Error downloading report:', error)
+      snackbar.error('Failed to download report')
+    } finally {
+      setGeneratingReport(null)
     }
-    setExporting(null)
   }
 
-  useEffect(() => {
-    fetchOrganizations()
-    // Set default date range (current month)
-    const now = new Date()
-    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
-    const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59)
-    setStartDate(startOfMonth)
-    setEndDate(endOfMonth)
-  }, [fetchOrganizations])
-
-  const reportTypeOptions = [
-    { value: 'time-summary', label: 'Time Summary Report' },
-    { value: 'payroll', label: 'Payroll Report' },
-    { value: 'project-costs', label: 'Project Cost Analysis' },
-    { value: 'detailed-timesheet', label: 'Detailed Timesheet' }
-  ]
-
-  if (!session) {
-    return <AuthenticatedLayout><div>Loading...</div></AuthenticatedLayout>
+  const generateCustomReport = () => {
+    const customFilters = {
+      startDate: dateRange.startDate,
+      endDate: dateRange.endDate,
+      employeeIds: selectedEmployees.length > 0 ? selectedEmployees : undefined,
+      projectIds: selectedProjects.length > 0 ? selectedProjects : undefined
+    }
+    generateReportPreview(selectedReportType, customFilters)
   }
 
-  if (organizations.length === 0) {
+  const getReportTitle = (reportType: string) => {
+    const titles = {
+      'time-tracking-summary': 'Time Tracking Summary',
+      'project-profitability': 'Project Profitability',
+      'team-utilization': 'Team Utilization',
+      'cost-breakdown': 'Cost Breakdown'
+    }
+    return titles[reportType as keyof typeof titles] || 'Report'
+  }
+
+  const renderReportTable = () => {
+    if (reportData.length === 0) {
+      return (
+        <div className="text-center py-8 text-slate-500">
+          No data available for the selected criteria
+        </div>
+      )
+    }
+
+    const headers = Object.keys(reportData[0])
+    
+    return (
+      <div className="overflow-x-auto">
+        <table className="min-w-full divide-y divide-slate-200">
+          <thead className="bg-slate-50">
+            <tr>
+              {headers.map((header) => (
+                <th
+                  key={header}
+                  className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider"
+                >
+                  {header.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase())}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody className="bg-white divide-y divide-slate-200">
+            {reportData.slice(0, 100).map((row, index) => (
+              <tr key={index} className={index % 2 === 0 ? 'bg-white' : 'bg-slate-50'}>
+                {headers.map((header) => (
+                  <td key={header} className="px-6 py-4 whitespace-nowrap text-sm text-slate-900">
+                    {typeof row[header] === 'object' ? JSON.stringify(row[header]) : String(row[header] ?? '')}
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        {reportData.length > 100 && (
+          <div className="px-6 py-4 text-sm text-slate-500 bg-slate-50">
+            Showing first 100 of {reportData.length} records. Download to see all data.
+          </div>
+        )}
+      </div>
+    )
+  }
+
+  const openCustomBuilder = (reportType: string) => {
+    setSelectedReportType(reportType)
+    setSelectedEmployees([])
+    setSelectedProjects([])
+    setShowCustomBuilder(true)
+  }
+
+  if (loading) {
     return (
       <AuthenticatedLayout>
         <div className="max-w-7xl mx-auto py-8 sm:px-6 lg:px-8">
-          <div className="px-4 py-6 sm:px-0">
-            <div className="bg-amber-50 border border-amber-200 rounded-2xl p-6">
-              <div className="flex items-center space-x-3">
-                <svg className="w-5 h-5 text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.732-.833-2.5 0L4.314 16.5c-.77.833.192 2.5 1.732 2.5z" />
-                </svg>
-                <div>
-                  <h3 className="text-lg font-semibold text-amber-900">Admin Access Required</h3>
-                  <p className="text-amber-700">You need admin access to an organization to view reports.</p>
-                </div>
-              </div>
-            </div>
+          <div className="flex items-center justify-center py-12">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600"></div>
           </div>
         </div>
       </AuthenticatedLayout>
@@ -200,352 +244,322 @@ export default function Reports() {
 
   return (
     <AuthenticatedLayout>
-      <div className="max-w-7xl mx-auto py-8 sm:px-6 lg:px-8">
+      <div className="max-w-6xl mx-auto py-8 sm:px-6 lg:px-8">
         <div className="px-4 py-6 sm:px-0">
-          <div className="flex items-center justify-between mb-8">
-            <div>
-              <h1 className="text-3xl font-bold text-slate-900">Reports & Analytics</h1>
-              <p className="text-slate-600 mt-2">Generate detailed reports for payroll, projects, and time tracking</p>
-            </div>
-          </div>
-
-          {/* Report Configuration */}
-          <div className="bg-white/70 backdrop-blur-sm shadow-xl rounded-2xl border border-slate-200/50 p-6 mb-8 relative z-20">
-            <h3 className="text-lg font-semibold text-slate-900 mb-4">Report Configuration</h3>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-              {organizations.length > 1 && (
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-2">Organization</label>
+          {/* Header */}
+          <div className="mb-8">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6">
+              <div>
+                <h1 className="text-3xl font-bold text-slate-900">Reports</h1>
+                <p className="text-slate-600 mt-2">Generate and export custom reports</p>
+              </div>
+              <div className="flex flex-col sm:flex-row gap-4 mt-4 sm:mt-0">
+                {organizations.length > 1 && (
                   <SearchableSelect
                     value={selectedOrgId}
-                    onChange={setSelectedOrgId}
-                    options={organizations.map(org => ({ value: org.id, label: org.name }))}
+                    onChange={(value) => setSelectedOrgId(value as string)}
+                    options={organizations.map(org => ({
+                      value: org.id,
+                      label: org.name
+                    }))}
                     placeholder="Select organization..."
+                    className="w-full sm:w-64"
                   />
-                </div>
-              )}
-
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-2">Report Type</label>
-                <SearchableSelect
-                  value={reportType}
-                  onChange={(value) => setReportType(value as ReportType)}
-                  options={reportTypeOptions}
-                  placeholder="Select report type..."
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-2">Start Date</label>
-                <DateTimePicker
-                  selected={startDate}
-                  onChange={(date) => {
-                    if (date) {
-                      // Set to start of day to avoid selection issues
-                      const startOfDay = new Date(date)
-                      startOfDay.setHours(0, 0, 0, 0)
-                      setStartDate(startOfDay)
-                    } else {
-                      setStartDate(null)
-                    }
-                  }}
-                  showTimeSelect={false}
-                  dateFormat="MM/dd/yyyy"
-                  placeholderText="Select start date"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-2">End Date</label>
-                <DateTimePicker
-                  selected={endDate}
-                  onChange={(date) => {
-                    if (date) {
-                      // Set to end of day to capture full day
-                      const endOfDay = new Date(date)
-                      endOfDay.setHours(23, 59, 59, 999)
-                      setEndDate(endOfDay)
-                    } else {
-                      setEndDate(null)
-                    }
-                  }}
-                  showTimeSelect={false}
-                  dateFormat="MM/dd/yyyy"
-                  placeholderText="Select end date"
-                  minDate={startDate || undefined}
-                />
+                )}
+                
+                {!showCustomBuilder && (
+                  <div className="flex items-center space-x-1 bg-slate-100 rounded-lg p-1">
+                    {(['week', 'month', 'quarter'] as const).map((range) => (
+                      <button
+                        key={range}
+                        onClick={() => setTimeRange(range)}
+                        className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors duration-200 ${
+                          timeRange === range
+                            ? 'bg-white text-slate-900 shadow-sm'
+                            : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200'
+                        }`}
+                      >
+                        {range.charAt(0).toUpperCase() + range.slice(1)}
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
-
-            <Button
-              onClick={generateReport}
-              loading={loading}
-              disabled={!selectedOrgId || !startDate || !endDate}
-              icon={
-                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-                </svg>
-              }
-            >
-              Generate Report
-            </Button>
           </div>
 
-          {/* Report Results */}
-          {reportData && (
-            <div className="bg-white/70 backdrop-blur-sm shadow-xl rounded-2xl border border-slate-200/50 p-6 relative z-10">
+          {!selectedOrgId ? (
+            <div className="text-center py-12">
+              <p className="text-slate-500">Please select an organization to view reports.</p>
+            </div>
+          ) : showCustomBuilder ? (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5 }}
+              className="bg-white/70 backdrop-blur-sm shadow-xl rounded-2xl border border-slate-200/50 p-6"
+            >
               <div className="flex items-center justify-between mb-6">
-                <h3 className="text-lg font-semibold text-slate-900">Report Results</h3>
-                <div className="flex space-x-2">
+                <div className="flex items-center">
+                  <div className="p-3 rounded-xl bg-gradient-to-r from-purple-500 to-purple-600 text-white mr-4">
+                    <AdjustmentsHorizontalIcon className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-bold text-slate-900">Custom Report Builder</h3>
+                    <p className="text-sm text-slate-600">Configure your report parameters</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setShowCustomBuilder(false)}
+                  className="text-slate-400 hover:text-slate-600 transition-colors"
+                >
+                  ✕
+                </button>
+              </div>
+
+              <div className="space-y-6">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-2">
+                      Date Range
+                    </label>
+                    <DateRangePicker
+                      value={dateRange}
+                      onChange={setDateRange}
+                      className="w-full"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-2">
+                      Projects
+                    </label>
+                    <ProjectMultiSelect
+                      value={selectedProjects}
+                      onChange={setSelectedProjects}
+                      organizationId={selectedOrgId}
+                      className="w-full"
+                      placeholder="All projects (leave empty for all)"
+                    />
+                  </div>
+                </div>
+
+                {(selectedReportType === 'time-tracking-summary' || selectedReportType === 'team-utilization') && (
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-2">
+                      Employees
+                    </label>
+                    <EmployeeMultiSelect
+                      value={selectedEmployees}
+                      onChange={setSelectedEmployees}
+                      organizationId={selectedOrgId}
+                      className="w-full"
+                      placeholder="All employees (leave empty for all)"
+                    />
+                  </div>
+                )}
+
+                <div className="flex justify-end space-x-3 pt-4 border-t border-slate-200">
                   <Button
-                    onClick={() => exportReport('csv')}
-                    loading={exporting === 'csv'}
+                    onClick={() => setShowCustomBuilder(false)}
                     variant="secondary"
                     size="sm"
-                    icon={
-                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                      </svg>
-                    }
                   >
-                    Export CSV
+                    Cancel
                   </Button>
                   <Button
-                    onClick={() => exportReport('quickbooks')}
-                    loading={exporting === 'quickbooks'}
-                    variant="success"
+                    onClick={generateCustomReport}
+                    variant="primary"
                     size="sm"
-                    icon={
-                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                      </svg>
-                    }
+                    loading={generatingReport === selectedReportType}
+                    disabled={!dateRange.startDate || !dateRange.endDate}
+                    icon={<ArrowDownTrayIcon className="w-4 h-4" />}
                   >
-                    Export to QuickBooks
+                    Generate Report
+                  </Button>
+                </div>
+              </div>
+            </motion.div>
+          ) : showReportPreview ? (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5 }}
+              className="bg-white/70 backdrop-blur-sm shadow-xl rounded-2xl border border-slate-200/50 p-6"
+            >
+              <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center">
+                  <div className="p-3 rounded-xl bg-gradient-to-r from-green-500 to-green-600 text-white mr-4">
+                    <DocumentChartBarIcon className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-bold text-slate-900">{getReportTitle(currentReportType)}</h3>
+                    <p className="text-sm text-slate-600">{reportData.length} records found</p>
+                  </div>
+                </div>
+                <div className="flex space-x-3">
+                  <Button
+                    onClick={() => downloadReport('csv')}
+                    variant="secondary"
+                    size="sm"
+                    loading={generatingReport === currentReportType}
+                    icon={<ArrowDownTrayIcon className="w-4 h-4" />}
+                  >
+                    Download CSV
+                  </Button>
+                  <Button
+                    onClick={() => setShowReportPreview(false)}
+                    variant="primary"
+                    size="sm"
+                  >
+                    Back to Reports
                   </Button>
                 </div>
               </div>
 
-              {/* Summary Cards */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-                <div className="bg-gradient-to-r from-blue-500 to-blue-600 rounded-xl p-4 text-white">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-blue-100 text-sm">Total Hours</p>
-                      <p className="text-2xl font-bold">{reportData.totalHours.toFixed(1)}</p>
-                    </div>
-                    <svg className="w-8 h-8 text-blue-200" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
+              <div className="border border-slate-200 rounded-lg overflow-hidden">
+                {renderReportTable()}
+              </div>
+            </motion.div>
+          ) : (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5 }}
+              className="grid grid-cols-1 md:grid-cols-2 gap-8"
+            >
+              {/* Time Tracking Report */}
+              <div className="bg-white/70 backdrop-blur-sm shadow-xl rounded-2xl border border-slate-200/50 p-6">
+                <div className="flex items-center mb-4">
+                  <div className="p-3 rounded-xl bg-gradient-to-r from-blue-500 to-blue-600 text-white mr-4">
+                    <ClockIcon className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-bold text-slate-900">Time Tracking</h3>
+                    <p className="text-sm text-slate-600">Hours logged by team and projects</p>
                   </div>
                 </div>
-
-                <div className="bg-gradient-to-r from-green-500 to-green-600 rounded-xl p-4 text-white">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-green-100 text-sm">Total Cost</p>
-                      <p className="text-2xl font-bold">${reportData.totalCost.toFixed(2)}</p>
-                    </div>
-                    <svg className="w-8 h-8 text-green-200" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
-                    </svg>
-                  </div>
-                </div>
-
-                <div className="bg-gradient-to-r from-purple-500 to-purple-600 rounded-xl p-4 text-white">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-purple-100 text-sm">Avg Rate/Hour</p>
-                      <p className="text-2xl font-bold">${reportData.totalHours > 0 ? (reportData.totalCost / reportData.totalHours).toFixed(2) : '0.00'}</p>
-                    </div>
-                    <svg className="w-8 h-8 text-purple-200" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-                    </svg>
-                  </div>
+                <div className="flex gap-2">
+                  <Button
+                    onClick={() => generateReportPreview('time-tracking-summary')}
+                    variant="secondary"
+                    size="sm"
+                    disabled={generatingReport === 'time-tracking-summary'}
+                    loading={generatingReport === 'time-tracking-summary'}
+                    icon={<ArrowDownTrayIcon className="w-4 h-4" />}
+                  >
+                    Generate Report
+                  </Button>
+                  <Button
+                    onClick={() => openCustomBuilder('time-tracking-summary')}
+                    variant="primary"
+                    size="sm"
+                    icon={<AdjustmentsHorizontalIcon className="w-4 h-4" />}
+                  >
+                    Custom
+                  </Button>
                 </div>
               </div>
 
-              {/* Report Type Specific Content */}
-              {reportType === 'payroll' && (
-                <div className="mb-6">
-                  <h4 className="text-md font-semibold text-slate-900 mb-3">Payroll Summary</h4>
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-sm">
-                      <thead>
-                        <tr className="border-b border-slate-200">
-                          <th className="text-left py-2 font-medium text-slate-900">Employee</th>
-                          <th className="text-right py-2 font-medium text-slate-900">Regular Hours</th>
-                          <th className="text-right py-2 font-medium text-slate-900">Overtime Hours</th>
-                          <th className="text-right py-2 font-medium text-slate-900">Total Pay</th>
-                          <th className="text-right py-2 font-medium text-slate-900">Days Worked</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {reportData.employeeBreakdown.map((employee) => {
-                          const regularHours = Math.min(employee.hours, 40)
-                          const overtimeHours = Math.max(employee.hours - 40, 0)
-                          const daysWorked = Math.ceil(employee.hours / 8)
-                          return (
-                            <tr key={employee.userId} className="border-b border-slate-100">
-                              <td className="py-2 text-slate-800 font-medium">{employee.userName || employee.userEmail}</td>
-                              <td className="text-right py-2 text-slate-800">{regularHours.toFixed(1)}</td>
-                              <td className="text-right py-2 text-slate-800 text-orange-600 font-medium">{overtimeHours > 0 ? overtimeHours.toFixed(1) : '-'}</td>
-                              <td className="text-right py-2 text-slate-800 font-semibold">${employee.cost.toFixed(2)}</td>
-                              <td className="text-right py-2 text-slate-800">{daysWorked}</td>
-                            </tr>
-                          )
-                        })}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              )}
-
-              {reportType === 'project-costs' && (
-                <div className="mb-6">
-                  <h4 className="text-md font-semibold text-slate-900 mb-3">Project Cost Analysis</h4>
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-sm">
-                      <thead>
-                        <tr className="border-b border-slate-200">
-                          <th className="text-left py-2 font-medium text-slate-900">Project</th>
-                          <th className="text-right py-2 font-medium text-slate-900">Hours</th>
-                          <th className="text-right py-2 font-medium text-slate-900">Total Cost</th>
-                          <th className="text-right py-2 font-medium text-slate-900">Avg Rate</th>
-                          <th className="text-right py-2 font-medium text-slate-900">Contributors</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {reportData.projectBreakdown.map((project) => {
-                          const avgRate = project.hours > 0 ? project.cost / project.hours : 0
-                          const contributors = reportData.timeEntries
-                            .filter(entry => (entry.project?.id || 'no-project') === project.projectId)
-                            .reduce((acc, entry) => {
-                              if (!acc.includes(entry.user.email)) acc.push(entry.user.email)
-                              return acc
-                            }, [] as string[]).length
-                          return (
-                            <tr key={project.projectId} className="border-b border-slate-100">
-                              <td className="py-2 text-slate-800 font-medium">{project.projectName}</td>
-                              <td className="text-right py-2 text-slate-800">{project.hours.toFixed(1)}</td>
-                              <td className="text-right py-2 text-slate-800 font-semibold">${project.cost.toFixed(2)}</td>
-                              <td className="text-right py-2 text-slate-800">${avgRate.toFixed(2)}/hr</td>
-                              <td className="text-right py-2 text-slate-800">{contributors}</td>
-                            </tr>
-                          )
-                        })}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              )}
-
-              {reportType === 'time-summary' && (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-                  <div>
-                    <h4 className="text-md font-semibold text-slate-900 mb-3">Employee Summary</h4>
-                    <div className="overflow-x-auto">
-                      <table className="w-full text-sm">
-                        <thead>
-                          <tr className="border-b border-slate-200">
-                            <th className="text-left py-2 font-medium text-slate-900">Employee</th>
-                            <th className="text-right py-2 font-medium text-slate-900">Hours</th>
-                            <th className="text-right py-2 font-medium text-slate-900">Cost</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {reportData.employeeBreakdown.slice(0, 5).map((employee) => (
-                            <tr key={employee.userId} className="border-b border-slate-100">
-                              <td className="py-2 text-slate-800 font-medium">{employee.userName || employee.userEmail}</td>
-                              <td className="text-right py-2 text-slate-800">{employee.hours.toFixed(1)}</td>
-                              <td className="text-right py-2 text-slate-800">${employee.cost.toFixed(2)}</td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
+              {/* Project Profitability Report */}
+              <div className="bg-white/70 backdrop-blur-sm shadow-xl rounded-2xl border border-slate-200/50 p-6">
+                <div className="flex items-center mb-4">
+                  <div className="p-3 rounded-xl bg-gradient-to-r from-green-500 to-green-600 text-white mr-4">
+                    <CurrencyDollarIcon className="w-6 h-6" />
                   </div>
                   <div>
-                    <h4 className="text-md font-semibold text-slate-900 mb-3">Top Projects</h4>
-                    <div className="overflow-x-auto">
-                      <table className="w-full text-sm">
-                        <thead>
-                          <tr className="border-b border-slate-200">
-                            <th className="text-left py-2 font-medium text-slate-900">Project</th>
-                            <th className="text-right py-2 font-medium text-slate-900">Hours</th>
-                            <th className="text-right py-2 font-medium text-slate-900">Cost</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {reportData.projectBreakdown.slice(0, 5).map((project) => (
-                            <tr key={project.projectId} className="border-b border-slate-100">
-                              <td className="py-2 text-slate-800 font-medium">{project.projectName}</td>
-                              <td className="text-right py-2 text-slate-800">{project.hours.toFixed(1)}</td>
-                              <td className="text-right py-2 text-slate-800">${project.cost.toFixed(2)}</td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
+                    <h3 className="text-lg font-bold text-slate-900">Project Profitability</h3>
+                    <p className="text-sm text-slate-600">Revenue vs costs with ROI analysis</p>
                   </div>
                 </div>
-              )}
+                <div className="flex gap-2">
+                  <Button
+                    onClick={() => generateReportPreview('project-profitability')}
+                    variant="secondary"
+                    size="sm"
+                    disabled={generatingReport === 'project-profitability'}
+                    loading={generatingReport === 'project-profitability'}
+                    icon={<ArrowDownTrayIcon className="w-4 h-4" />}
+                  >
+                    Generate Report
+                  </Button>
+                  <Button
+                    onClick={() => openCustomBuilder('project-profitability')}
+                    variant="primary"
+                    size="sm"
+                    icon={<AdjustmentsHorizontalIcon className="w-4 h-4" />}
+                  >
+                    Custom
+                  </Button>
+                </div>
+              </div>
 
-              {reportType === 'detailed-timesheet' && (
-                <div className="mb-6">
-                  <h4 className="text-md font-semibold text-slate-900 mb-3">Detailed Time Entries</h4>
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-sm min-w-[900px]">
-                      <thead>
-                        <tr className="border-b border-slate-200">
-                          <th className="text-left py-2 font-medium text-slate-900 w-20">Date</th>
-                          <th className="text-left py-2 font-medium text-slate-900 w-32">Employee</th>
-                          <th className="text-left py-2 font-medium text-slate-900 w-28">Project</th>
-                          <th className="text-right py-2 font-medium text-slate-900 w-16">Hours</th>
-                          <th className="text-right py-2 font-medium text-slate-900 w-16">Rate</th>
-                          <th className="text-right py-2 font-medium text-slate-900 w-20">Cost</th>
-                          <th className="text-left py-2 font-medium text-slate-900">Description</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {reportData.timeEntries.slice(0, 50).map((entry) => (
-                          <tr key={entry.id} className="border-b border-slate-100">
-                            <td className="py-2 text-slate-800 whitespace-nowrap w-20">{new Date(entry.clockIn).toLocaleDateString('en-US', { month: '2-digit', day: '2-digit' })}</td>
-                            <td className="py-2 text-slate-800 font-medium w-32">
-                              <div className="truncate" title={entry.user.name || entry.user.email}>
-                                {(entry.user.name || entry.user.email).split(' ')[0]}
-                              </div>
-                            </td>
-                            <td className="py-2 text-slate-800 w-28">
-                              <div className="truncate" title={entry.project?.name || 'No Project'}>
-                                {entry.project?.name || 'No Project'}
-                              </div>
-                            </td>
-                            <td className="text-right py-2 text-slate-800 whitespace-nowrap w-16">{entry.totalHours?.toFixed(1)}</td>
-                            <td className="text-right py-2 text-slate-800 whitespace-nowrap w-16">${entry.hourlyRate?.toFixed(0)}</td>
-                            <td className="text-right py-2 text-slate-800 font-semibold whitespace-nowrap w-20">${entry.calculatedCost.toFixed(2)}</td>
-                            <td className="py-2 text-slate-600 text-xs">
-                              <div className="max-w-xs truncate" title={entry.description || ''}>
-                                {entry.description || '-'}
-                              </div>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                    {reportData.timeEntries.length > 50 && (
-                      <div className="mt-3 text-center">
-                        <p className="text-sm text-slate-500">
-                          Showing first 50 entries of {reportData.timeEntries.length} total.
-                          <span className="text-purple-600 font-medium"> Export for complete data.</span>
-                        </p>
-                      </div>
-                    )}
+              {/* Team Utilization Report */}
+              <div className="bg-white/70 backdrop-blur-sm shadow-xl rounded-2xl border border-slate-200/50 p-6">
+                <div className="flex items-center mb-4">
+                  <div className="p-3 rounded-xl bg-gradient-to-r from-purple-500 to-purple-600 text-white mr-4">
+                    <UserGroupIcon className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-bold text-slate-900">Team Utilization</h3>
+                    <p className="text-sm text-slate-600">Time allocation across projects</p>
                   </div>
                 </div>
-              )}
-            </div>
+                <div className="flex gap-2">
+                  <Button
+                    onClick={() => generateReportPreview('team-utilization')}
+                    variant="secondary"
+                    size="sm"
+                    disabled={generatingReport === 'team-utilization'}
+                    loading={generatingReport === 'team-utilization'}
+                    icon={<ArrowDownTrayIcon className="w-4 h-4" />}
+                  >
+                    Generate Report
+                  </Button>
+                  <Button
+                    onClick={() => openCustomBuilder('team-utilization')}
+                    variant="primary"
+                    size="sm"
+                    icon={<AdjustmentsHorizontalIcon className="w-4 h-4" />}
+                  >
+                    Custom
+                  </Button>
+                </div>
+              </div>
+
+              {/* Cost Breakdown Report */}
+              <div className="bg-white/70 backdrop-blur-sm shadow-xl rounded-2xl border border-slate-200/50 p-6">
+                <div className="flex items-center mb-4">
+                  <div className="p-3 rounded-xl bg-gradient-to-r from-orange-500 to-orange-600 text-white mr-4">
+                    <DocumentChartBarIcon className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-bold text-slate-900">Cost Breakdown</h3>
+                    <p className="text-sm text-slate-600">Detailed project expenses</p>
+                  </div>
+                </div>
+                <div className="flex gap-2">
+                  <Button
+                    onClick={() => generateReportPreview('cost-breakdown')}
+                    variant="secondary"
+                    size="sm"
+                    disabled={generatingReport === 'cost-breakdown'}
+                    loading={generatingReport === 'cost-breakdown'}
+                    icon={<ArrowDownTrayIcon className="w-4 h-4" />}
+                  >
+                    Generate Report
+                  </Button>
+                  <Button
+                    onClick={() => openCustomBuilder('cost-breakdown')}
+                    variant="primary"
+                    size="sm"
+                    icon={<AdjustmentsHorizontalIcon className="w-4 h-4" />}
+                  >
+                    Custom
+                  </Button>
+                </div>
+              </div>
+            </motion.div>
           )}
         </div>
       </div>

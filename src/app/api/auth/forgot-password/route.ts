@@ -2,8 +2,9 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '../../../../lib/prisma'
 import { sendPasswordResetEmail } from '../../../../lib/email'
 import crypto from 'crypto'
+import { withRateLimit } from '@/lib/rateLimit'
 
-export async function POST(req: NextRequest) {
+async function handleForgotPassword(req: NextRequest) {
   try {
     const { email } = await req.json()
 
@@ -70,3 +71,5 @@ export async function POST(req: NextRequest) {
     )
   }
 }
+
+export const POST = withRateLimit(handleForgotPassword, 'auth')

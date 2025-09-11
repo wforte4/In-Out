@@ -229,17 +229,20 @@ function TimesheetContent() {
       startDate = today
       endDate = today
     } else if (period === 'week') {
-      // Get the start of the current week (Sunday)
-      const dayOfWeek = now.getDay() // 0 = Sunday, 1 = Monday, etc.
-      startDate = new Date(today)
-      startDate.setDate(today.getDate() - dayOfWeek) // Go back to Sunday
+      // Use the currently viewed date for week calculation when in week view
+      const referenceDate = viewMode === 'week' ? currentDate : now
+      const dayOfWeek = referenceDate.getDay() // 0 = Sunday, 1 = Monday, etc.
+      startDate = new Date(referenceDate)
+      startDate.setDate(referenceDate.getDate() - dayOfWeek) // Go back to Sunday
 
       // End of week (Saturday)
       endDate = new Date(startDate)
       endDate.setDate(startDate.getDate() + 6)
     } else {
-      startDate = new Date(today.getFullYear(), today.getMonth(), 1) // Start of current month
-      endDate = today
+      // Use the currently viewed date for month calculation when in month view
+      const referenceDate = viewMode === 'month' ? currentDate : now
+      startDate = new Date(referenceDate.getFullYear(), referenceDate.getMonth(), 1) // Start of viewed/current month
+      endDate = new Date(referenceDate.getFullYear(), referenceDate.getMonth() + 1, 0) // End of viewed/current month
     }
 
     return timeEntries.filter(entry => {

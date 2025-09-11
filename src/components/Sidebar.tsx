@@ -6,7 +6,7 @@ import { useSession } from 'next-auth/react'
 import Link from 'next/link'
 import Image from 'next/image'
 import {
-  BriefcaseIcon,
+  ClockIcon,
   DocumentTextIcon,
   CalendarDaysIcon,
   FolderIcon,
@@ -70,9 +70,9 @@ export default function Sidebar({ showOrganization = true, onCollapsedChange }: 
 
   const mainNavItems = [
     {
-      name: 'Dashboard',
+      name: 'Clock In',
       href: '/dashboard',
-      icon: <BriefcaseIcon className="w-5 h-5" />,
+      icon: <ClockIcon className="w-5 h-5" />,
     },
     {
       name: 'My Timesheet',
@@ -88,7 +88,7 @@ export default function Sidebar({ showOrganization = true, onCollapsedChange }: 
 
   const allOrganizationNavItems = [
     {
-      name: 'Admin Dashboard',
+      name: 'Dashboard',
       href: '/admin',
       icon: <CogIcon className="w-5 h-5" />,
       adminOnly: true,

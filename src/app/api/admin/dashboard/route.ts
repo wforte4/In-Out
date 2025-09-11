@@ -4,6 +4,39 @@ const { getServerSession } = require('next-auth')
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 
+export async function GET() {
+  try {
+    const session = await getServerSession(authOptions)
+
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    // Get organizations where user is admin
+    const adminOrganizations = await prisma.membership.findMany({
+      where: {
+        userId: session.user.id,
+        role: 'ADMIN',
+      },
+      include: {
+        organization: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+      },
+    })
+
+    return NextResponse.json({
+      organizations: adminOrganizations.map(membership => membership.organization)
+    })
+  } catch (error) {
+    console.error('Error checking admin status:', error)
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+  }
+}
+
 export async function POST(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions)

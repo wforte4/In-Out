@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server'
 const { getServerSession } = require('next-auth')
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { auditTimeEntry } from '@/lib/audit'
 
 export async function POST(request: NextRequest) {
   try {
@@ -36,6 +37,15 @@ export async function POST(request: NextRequest) {
         }
       })
 
+      // Audit log the clock in action
+      await auditTimeEntry.clockIn(
+        session.user.id,
+        timeEntry.id,
+        organizationId,
+        projectId,
+        request
+      )
+
       return NextResponse.json({ timeEntry })
     }
 
@@ -62,6 +72,15 @@ export async function POST(request: NextRequest) {
           description: description || activeEntry.description
         }
       })
+
+      // Audit log the clock out action
+      await auditTimeEntry.clockOut(
+        session.user.id,
+        timeEntry.id,
+        timeEntry.organizationId || '',
+        timeEntry.totalHours || 0,
+        request
+      )
 
       return NextResponse.json({ timeEntry })
     }

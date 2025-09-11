@@ -86,14 +86,14 @@ export default function Dashboard() {
     if (!selectedOrgId) return
     
     try {
-      const response = await fetch(`/api/projects?organizationId=${selectedOrgId}`)
+      // Fetch only projects where the user is assigned
+      const response = await fetch(`/api/projects/assigned?organizationId=${selectedOrgId}`)
       const data = await response.json()
       if (response.ok) {
-        const activeProjects = data.projects?.filter((p: Project) => p.status === 'ACTIVE') || []
-        setProjects(activeProjects)
+        setProjects(data.projects || [])
       }
     } catch (error) {
-      console.error('Error fetching projects:', error)
+      console.error('Error fetching assigned projects:', error)
     }
   }, [selectedOrgId])
 

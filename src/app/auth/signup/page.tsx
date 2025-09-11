@@ -83,30 +83,39 @@ function SignUpContent() {
       if (!response.ok) {
         setError(data.error || 'An error occurred')
       } else {
-        if (mode === 'create') {
-          setSuccess(`Account created! Organization code: ${data.organizationCode}. Signing you in...`)
+        if (data.requiresVerification) {
+          setSuccess(data.message + (data.organizationCode ? ` Organization code: ${data.organizationCode}.` : ''))
+          // Redirect to sign in after showing verification message
+          setTimeout(() => {
+            router.push('/auth/signin?message=Please check your email and verify your account before signing in.')
+          }, 4000)
         } else {
-          setSuccess('Account created! Signing you in...')
-        }
-        
-        // Automatically sign in the user after successful registration
-        setTimeout(async () => {
-          setIsSigningIn(true)
-          const signInResult = await signIn('credentials', {
-            email,
-            password,
-            redirect: false,
-          })
-          
-          if (signInResult?.ok) {
-            router.push('/dashboard')
+          // Legacy flow for backwards compatibility
+          if (mode === 'create') {
+            setSuccess(`Account created! Organization code: ${data.organizationCode}. Signing you in...`)
           } else {
-            // If auto sign-in fails, redirect to sign-in page
-            setIsSigningIn(false)
-            setError('Account created but sign-in failed. Please sign in manually.')
-            setTimeout(() => router.push('/auth/signin'), 2000)
+            setSuccess('Account created! Signing you in...')
           }
-        }, 1500)
+          
+          // Automatically sign in the user after successful registration
+          setTimeout(async () => {
+            setIsSigningIn(true)
+            const signInResult = await signIn('credentials', {
+              email,
+              password,
+              redirect: false,
+            })
+            
+            if (signInResult?.ok) {
+              router.push('/dashboard')
+            } else {
+              // If auto sign-in fails, redirect to sign-in page
+              setIsSigningIn(false)
+              setError('Account created but sign-in failed. Please sign in manually.')
+              setTimeout(() => router.push('/auth/signin'), 2000)
+            }
+          }, 1500)
+        }
       }
     } catch {
       setError('An error occurred. Please try again.')
