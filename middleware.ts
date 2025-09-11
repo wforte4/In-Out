@@ -17,7 +17,7 @@ const projectRoutes = [
 ]
 
 export default withAuth(
-  async function middleware(req: NextRequest & { nextauth: { token: any } }) {
+  async function middleware(req: NextRequest & { nextauth: { token: unknown } }) {
     const { pathname } = req.nextUrl
     const token = req.nextauth.token
 

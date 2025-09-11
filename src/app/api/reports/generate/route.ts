@@ -231,7 +231,8 @@ async function generateReportData(reportId: string, organizationId: string, filt
   }
 }
 
-async function createDownloadFile(data: Record<string, unknown>[], format: string, reportId: string): Promise<string> {
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+async function createDownloadFile(data: Record<string, unknown>[], format: string, _reportId: string): Promise<string> {
   // In a real implementation, you would:
   // 1. Convert data to the requested format (CSV, PDF, XLSX)
   // 2. Save the file to cloud storage (S3, Google Cloud, etc.)

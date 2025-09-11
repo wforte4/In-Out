@@ -36,6 +36,7 @@ const ProjectMultiSelect: React.FC<ProjectMultiSelectProps> = ({
     if (organizationId) {
       fetchProjects()
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [organizationId])
 
   const fetchProjects = async () => {

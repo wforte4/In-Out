@@ -1,16 +1,11 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
+import { useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { UsersIcon } from '@heroicons/react/24/outline'
 import AuthenticatedLayout from '../../../components/AuthenticatedLayout'
-import SearchableSelect from '../../../components/SearchableSelect'
-import CustomDropdown from '../../../components/CustomDropdown'
 import Button from '../../../components/Button'
-import Input from '../../../components/Input'
-import Textarea from '../../../components/Textarea'
 import ProjectEmployeesModal from '../../../components/modals/ProjectEmployeesModal'
-import { useSnackbar } from '../../../hooks/useSnackbar'
 
 interface ProjectDetailWrapperProps {
   projectId: string
@@ -20,27 +15,8 @@ interface ProjectDetailWrapperProps {
 export default function ProjectDetailWrapper({ projectId, initialProject }: ProjectDetailWrapperProps) {
   const router = useRouter()
   const [project, setProject] = useState(initialProject)
-  const [loading, setLoading] = useState(false)
-  const [showCostForm, setShowCostForm] = useState(false)
-  const [showEditForm, setShowEditForm] = useState(false)
   const [showEmployeesModal, setShowEmployeesModal] = useState(false)
   const [isAdmin] = useState(true) // Already verified server-side
-  const [orgMembers, setOrgMembers] = useState([])
-  const [newCost, setNewCost] = useState({
-    costType: 'HOURLY_RATE' as 'HOURLY_RATE' | 'FIXED_COST' | 'EXPENSE',
-    amount: '',
-    description: '',
-    userId: ''
-  })
-  const [editProject, setEditProject] = useState({
-    name: initialProject.name,
-    description: initialProject.description || '',
-    status: initialProject.status,
-    estimatedHours: initialProject.estimatedHours?.toString() || '',
-    hourlyRate: initialProject.hourlyRate?.toString() || '',
-    fixedCost: initialProject.fixedCost?.toString() || ''
-  })
-  const snackbar = useSnackbar()
 
   const fetchProject = useCallback(async () => {
     try {
@@ -49,80 +25,13 @@ export default function ProjectDetailWrapper({ projectId, initialProject }: Proj
 
       if (response.ok) {
         setProject(data.project)
-        setEditProject({
-          name: data.project.name,
-          description: data.project.description || '',
-          status: data.project.status,
-          estimatedHours: data.project.estimatedHours?.toString() || '',
-          hourlyRate: data.project.hourlyRate?.toString() || '',
-          fixedCost: data.project.fixedCost?.toString() || ''
-        })
       } else {
-        snackbar.error(data.error || 'Failed to load project')
+        console.error('Failed to load project:', data.error)
       }
-    } catch {
-      snackbar.error('Error loading project')
+    } catch (error) {
+      console.error('Error loading project:', error)
     }
-  }, [projectId, snackbar])
-
-  // Rest of the component logic from the original file...
-  // I'll include the key parts but truncate for brevity
-
-  const calculateProjectRevenue = () => {
-    if (!project) return 0
-
-    let revenue = 0
-
-    // Add fixed costs
-    const projectCosts = (project.projectCosts as Array<{ costType: string; amount: number }>) || []
-    revenue += projectCosts
-      .filter(cost => cost.costType === 'FIXED_COST')
-      .reduce((sum, cost) => sum + cost.amount, 0)
-
-    // Create a map of user rates for quick lookup
-    const getUserRate = (userId: string, userDefaultRate?: number | null) => {
-      const projectEmployees = (project.projectEmployees as Array<{ user: { id: string }; hourlyRate?: number }>) || []
-      const projectEmployee = projectEmployees.find(pe => pe.user.id === userId)
-      if (projectEmployee?.hourlyRate) {
-        return projectEmployee.hourlyRate
-      }
-
-      if (userDefaultRate) {
-        return userDefaultRate
-      }
-
-      if (project.hourlyRate) {
-        return project.hourlyRate as number
-      }
-
-      return 0
-    }
-
-    // Legacy project costs
-    const legacyHourlyRates = new Map()
-    projectCosts
-      .filter((cost: { costType: string; user?: { email: string }; amount: number }) => cost.costType === 'HOURLY_RATE')
-      .forEach((cost: { costType: string; user?: { email: string }; amount: number }) => {
-        if (cost.user) {
-          legacyHourlyRates.set(cost.user.email, cost.amount)
-        }
-      })
-
-    // Calculate revenue from time entries
-    const timeEntries = (project.timeEntries as Array<{ totalHours?: number; user: { email: string; defaultHourlyRate?: number }; userId: string }>) || []
-    timeEntries.forEach(entry => {
-      if (entry.totalHours) {
-        if (legacyHourlyRates.has(entry.user.email)) {
-          revenue += entry.totalHours * legacyHourlyRates.get(entry.user.email)
-        } else {
-          const rate = getUserRate(entry.userId, entry.user.defaultHourlyRate)
-          revenue += entry.totalHours * rate
-        }
-      }
-    })
-
-    return revenue
-  }
+  }, [projectId])
 
   // Simplified render - just showing the basic structure
   return (
@@ -169,11 +78,6 @@ export default function ProjectDetailWrapper({ projectId, initialProject }: Proj
             )}
           </div>
 
-          {loading && (
-            <div className="flex items-center justify-center py-12">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600"></div>
-            </div>
-          )}
 
           <div className="text-center py-12">
             <p className="text-slate-600">Project detail view is loading...</p>

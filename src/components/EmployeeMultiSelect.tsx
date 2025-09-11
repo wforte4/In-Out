@@ -36,6 +36,7 @@ const EmployeeMultiSelect: React.FC<EmployeeMultiSelectProps> = ({
     if (organizationId) {
       fetchEmployees()
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [organizationId])
 
   const fetchEmployees = async () => {

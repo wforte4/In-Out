@@ -24,7 +24,7 @@ interface AdminDashboardWrapperProps {
 }
 
 export default function AdminDashboardWrapper({ initialOrganizations }: AdminDashboardWrapperProps) {
-  const { data: session } = useSession()
+  useSession() // Required for auth context
   const snackbar = useSnackbar()
   const [organizations] = useState<Organization[]>(initialOrganizations)
   const [selectedOrgId, setSelectedOrgId] = useState<string>(

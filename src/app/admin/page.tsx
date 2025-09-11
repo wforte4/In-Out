@@ -31,7 +31,7 @@ export default function AdminDashboard() {
   const [selectedOrgId, setSelectedOrgId] = useState<string>('')
   const [metrics, setMetrics] = useState<DashboardMetrics | null>(null)
   const [loading, setLoading] = useState(true)
-  const [hasAdminAccess, setHasAdminAccess] = useState(true) // Start with true to prevent flash
+  const [, setHasAdminAccess] = useState(true) // Start with true to prevent flash
   const [timeRange, setTimeRange] = useState<'week' | 'month' | 'quarter'>('month')
   const [showAdminMenu, setShowAdminMenu] = useState(false)
 
@@ -73,6 +73,7 @@ export default function AdminDashboard() {
     if (session) {
       fetchOrganizations()
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [session])
 
   useEffect(() => {

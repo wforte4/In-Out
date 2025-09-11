@@ -9,7 +9,6 @@ import {
   CurrencyDollarIcon,
   PlayIcon,
   StopIcon,
-  PlusIcon,
   PencilSquareIcon,
   CheckCircleIcon,
   ExclamationTriangleIcon

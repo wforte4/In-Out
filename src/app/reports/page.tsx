@@ -28,7 +28,7 @@ export default function Reports() {
   const [organizations, setOrganizations] = useState<Organization[]>([])
   const [selectedOrgId, setSelectedOrgId] = useState<string>('')
   const [loading, setLoading] = useState(true)
-  const [hasAdminAccess, setHasAdminAccess] = useState(true) // Start with true to prevent flash
+  const [, setHasAdminAccess] = useState(true) // Start with true to prevent flash
   const [timeRange, setTimeRange] = useState<'week' | 'month' | 'quarter'>('month')
   const [generatingReport, setGeneratingReport] = useState<string | null>(null)
   const [showCustomBuilder, setShowCustomBuilder] = useState(false)
@@ -68,6 +68,7 @@ export default function Reports() {
     if (session) {
       fetchOrganizations()
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [session])
 
   const generateReportPreview = async (reportType: string, customFilters?: Record<string, unknown>) => {

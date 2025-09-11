@@ -104,7 +104,7 @@ export async function DELETE(
     }
 
     // Soft delete by setting isActive to false and leftAt to now
-    const projectEmployee = await prisma.projectEmployee.update({
+    await prisma.projectEmployee.update({
       where: { id: employeeId },
       data: {
         isActive: false,

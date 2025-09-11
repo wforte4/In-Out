@@ -2,7 +2,7 @@
 
 import { useState, useEffect, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { signIn } from 'next-auth/react'
+// import { signIn } from 'next-auth/react' // Currently unused
 import Link from 'next/link'
 import Image from 'next/image'
 
@@ -23,6 +23,7 @@ function VerifyEmailContent() {
       setStatus('error')
       setMessage('No verification token provided')
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams])
 
   const verifyEmail = async (token: string) => {

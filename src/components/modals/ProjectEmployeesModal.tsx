@@ -64,6 +64,7 @@ export default function ProjectEmployeesModal({
   useEffect(() => {
     fetchProjectEmployees()
     fetchOrgMembers()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [projectId])
 
   const fetchProjectEmployees = async () => {

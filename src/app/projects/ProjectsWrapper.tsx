@@ -44,7 +44,7 @@ interface ProjectsWrapperProps {
 }
 
 export default function ProjectsWrapper({ initialOrganizations }: ProjectsWrapperProps) {
-  const { data: session } = useSession()
+  useSession() // Required for auth context
   const router = useRouter()
   const snackbar = useSnackbar()
   const [organizations] = useState<Organization[]>(initialOrganizations)
