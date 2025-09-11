@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import crypto from 'crypto'
+import { sendEmailVerificationEmail } from '@/lib/email'
 
 export async function POST(request: NextRequest) {
   try {
@@ -88,7 +90,7 @@ export async function PUT(request: NextRequest) {
     })
 
     // Create new verification token
-    const token = require('crypto').randomBytes(32).toString('hex')
+    const token = crypto.randomBytes(32).toString('hex')
     const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000) // 24 hours
 
     await prisma.emailVerificationToken.create({
@@ -100,7 +102,6 @@ export async function PUT(request: NextRequest) {
     })
 
     // Send verification email
-    const { sendEmailVerificationEmail } = require('@/lib/email')
     const emailResult = await sendEmailVerificationEmail(email, token, user.name || 'User')
     
     if (!emailResult.success) {

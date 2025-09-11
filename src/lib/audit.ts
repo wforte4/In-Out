@@ -94,8 +94,8 @@ export async function createAuditLog({
         entityType: entityType || 'UNKNOWN',
         entityId,
         entityName,
-        oldValues: oldValues || null,
-        newValues: newValues || null,
+        oldValues: oldValues as any, // eslint-disable-line @typescript-eslint/no-explicit-any
+        newValues: newValues as any, // eslint-disable-line @typescript-eslint/no-explicit-any
         metadata,
         organizationId
       }
@@ -385,9 +385,9 @@ export async function getAuditLogs({
   if (action) where.action = action
   if (entityType) where.entityType = entityType
   if (startDate || endDate) {
-    where.createdAt = {}
-    if (startDate) where.createdAt.gte = startDate
-    if (endDate) where.createdAt.lte = endDate
+    where.createdAt = {} as any // eslint-disable-line @typescript-eslint/no-explicit-any
+    if (startDate) (where.createdAt as any).gte = startDate // eslint-disable-line @typescript-eslint/no-explicit-any
+    if (endDate) (where.createdAt as any).lte = endDate // eslint-disable-line @typescript-eslint/no-explicit-any
   }
 
   const [logs, total] = await Promise.all([

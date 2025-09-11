@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from 'next/server'
 const { getServerSession } = require('next-auth')
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
-import { getAuditLogs, type AuditLogFilters } from '@/lib/audit'
+import { getAuditLogs, type AuditLogFilters, type AuditAction } from '@/lib/audit'
 import { withRateLimit } from '@/lib/rateLimit'
 
 async function handleAuditLogsRequest(request: NextRequest) {
@@ -61,7 +61,7 @@ async function handleAuditLogsRequest(request: NextRequest) {
             in: adminMemberships.map(m => m.organizationId)
           },
           ...(userId && { userId }),
-          ...(action && { action }),
+          ...(action && { action: action as AuditAction }),
           ...(entityType && { entityType }),
           ...(startDate || endDate ? {
             createdAt: {
@@ -96,7 +96,7 @@ async function handleAuditLogsRequest(request: NextRequest) {
             in: adminMemberships.map(m => m.organizationId)
           },
           ...(userId && { userId }),
-          ...(action && { action }),
+          ...(action && { action: action as AuditAction }),
           ...(entityType && { entityType }),
           ...(startDate || endDate ? {
             createdAt: {
