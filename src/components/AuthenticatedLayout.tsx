@@ -5,7 +5,7 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import UserDropdown from './UserDropdown'
 import Sidebar from './Sidebar'
-import { initializeSessionManager, cleanupSessionManager } from '@/lib/sessionManager'
+// import { initializeSessionManager, cleanupSessionManager } from '@/lib/sessionManager'
 
 interface AuthenticatedLayoutProps {
   children: React.ReactNode
@@ -24,12 +24,13 @@ export default function AuthenticatedLayout({ children }: AuthenticatedLayoutPro
     }
     
     // Initialize session management for authenticated users
-    initializeSessionManager()
+    // Temporarily disabled to prevent conflicts with server-side session handling
+    // initializeSessionManager()
     
-    return () => {
-      // Cleanup on unmount
-      cleanupSessionManager()
-    }
+    // return () => {
+    //   // Cleanup on unmount
+    //   cleanupSessionManager()
+    // }
   }, [session, status, router])
 
   if (status === 'loading') {

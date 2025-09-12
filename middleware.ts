@@ -17,7 +17,8 @@ const projectRoutes = [
 ]
 
 export default withAuth(
-  async function middleware(req: NextRequest & { nextauth: { token: unknown } }) {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  async function middleware(req: NextRequest & { nextauth: { token: any } }) {
     const { pathname } = req.nextUrl
     const token = req.nextauth.token
 
@@ -44,8 +45,8 @@ export default withAuth(
     const isProjectRoute = projectRoutes.some(route => pathname.startsWith(route))
 
     if (isAdminRoute || isProjectRoute) {
-      // If no token, redirect to signin
-      if (!token) {
+      // If no token or token is expired, redirect to signin
+      if (!token || token.expired) {
         const signInUrl = new URL('/auth/signin', req.url)
         signInUrl.searchParams.set('callbackUrl', req.url)
         return NextResponse.redirect(signInUrl)
@@ -74,7 +75,7 @@ export default withAuth(
   },
   {
     callbacks: {
-      authorized: ({ token }) => !!token,
+      authorized: ({ token }) => !!token && !token.expired,
     },
   }
 )
