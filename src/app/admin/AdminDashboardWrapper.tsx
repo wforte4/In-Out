@@ -1,8 +1,8 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { useSession } from 'next-auth/react'
 import { motion } from 'framer-motion'
+import { useRouteProtection } from '../../hooks/useRouteProtection'
 import {
   UsersIcon,
   ClockIcon,
@@ -24,7 +24,7 @@ interface AdminDashboardWrapperProps {
 }
 
 export default function AdminDashboardWrapper({ initialOrganizations }: AdminDashboardWrapperProps) {
-  useSession() // Required for auth context
+  const { isLoading } = useRouteProtection({ requireAuth: true })
   const snackbar = useSnackbar()
   const [organizations] = useState<Organization[]>(initialOrganizations)
   const [selectedOrgId, setSelectedOrgId] = useState<string>(
@@ -53,6 +53,18 @@ export default function AdminDashboardWrapper({ initialOrganizations }: AdminDas
     fetchDashboardMetrics()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedOrgId, timeRange])
+
+  // Show loading screen if authentication is being checked
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100">
+        <div className="flex items-center space-x-3">
+          <div className="w-8 h-8 bg-gradient-to-br from-purple-600 to-blue-600 rounded-lg animate-pulse"></div>
+          <span className="text-slate-600 font-medium">Loading...</span>
+        </div>
+      </div>
+    )
+  }
 
   const getDateRangeText = () => {
     const now = new Date()
