@@ -97,7 +97,22 @@ export default function Reports() {
       const result = await response.json()
 
       if (response.ok) {
-        const data = JSON.parse(result.downloadUrl.split(',')[1] || '[]')
+        // Handle different downloadUrl formats
+        let jsonData = '[]'
+        if (result.downloadUrl) {
+          if (result.downloadUrl.includes('data:')) {
+            // Handle data URL format
+            const parts = result.downloadUrl.split(',')
+            if (parts.length > 1) {
+              jsonData = decodeURIComponent(parts[1])
+            }
+          } else {
+            // Handle direct JSON or other formats
+            jsonData = result.downloadUrl
+          }
+        }
+        
+        const data = JSON.parse(jsonData)
         setReportData(data)
         setCurrentReportType(reportType)
         setReportFilters(filters)

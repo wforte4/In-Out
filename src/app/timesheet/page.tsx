@@ -231,13 +231,12 @@ function TimesheetContent() {
     } else if (period === 'week') {
       // Use the currently viewed date for week calculation when in week view
       const referenceDate = viewMode === 'week' ? currentDate : now
-      const dayOfWeek = referenceDate.getDay() // 0 = Sunday, 1 = Monday, etc.
-      startDate = new Date(referenceDate)
-      startDate.setDate(referenceDate.getDate() - dayOfWeek) // Go back to Sunday
+      startDate = getWeekStart(referenceDate)
 
       // End of week (Saturday)
       endDate = new Date(startDate)
       endDate.setDate(startDate.getDate() + 6)
+      endDate.setHours(23, 59, 59, 999)
     } else {
       // Use the currently viewed date for month calculation when in month view
       const referenceDate = viewMode === 'month' ? currentDate : now
@@ -268,9 +267,12 @@ function TimesheetContent() {
 
   const getWeekStart = (date: Date) => {
     const d = new Date(date)
-    const day = d.getDay()
+    const day = d.getDay() // 0 = Sunday, 1 = Monday, etc.
     const diff = d.getDate() - day
-    return new Date(d.setDate(diff))
+    d.setDate(diff)
+    // Set to beginning of day to avoid time issues
+    d.setHours(0, 0, 0, 0)
+    return d
   }
 
   const getMonthStart = (date: Date) => {
