@@ -59,11 +59,6 @@ export const authOptions = {
   callbacks: {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     session: async ({ session, token }: any) => {
-      // If token is expired, return null session to trigger logout
-      if (token.expired) {
-        return null;
-      }
-      
       if (token.uid) {
         // Fetch fresh user data from database
         const user = await prisma.user.findUnique({
@@ -90,23 +85,7 @@ export const authOptions = {
         token.name = user.name;
         token.email = user.email;
         token.image = user.image;
-        token.lastActivity = Date.now();
       }
-      
-      // Check for session timeout (8 hours of inactivity)
-      const now = Date.now();
-      const lastActivity = token.lastActivity || now;
-      const sessionTimeout = 8 * 60 * 60 * 1000; // 8 hours in milliseconds
-      
-      if (now - lastActivity > sessionTimeout) {
-        // Mark token as expired instead of returning null to prevent redirect loops
-        token.expired = true;
-        return token;
-      }
-      
-      // Update last activity timestamp on each token refresh
-      token.lastActivity = now;
-      token.expired = false;
       return token;
     },
   },

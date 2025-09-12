@@ -45,8 +45,8 @@ export default withAuth(
     const isProjectRoute = projectRoutes.some(route => pathname.startsWith(route))
 
     if (isAdminRoute || isProjectRoute) {
-      // If no token or token is expired, redirect to signin
-      if (!token || token.expired) {
+      // If no token, redirect to signin
+      if (!token) {
         const signInUrl = new URL('/auth/signin', req.url)
         signInUrl.searchParams.set('callbackUrl', req.url)
         return NextResponse.redirect(signInUrl)
@@ -75,7 +75,7 @@ export default withAuth(
   },
   {
     callbacks: {
-      authorized: ({ token }) => !!token && !token.expired,
+      authorized: ({ token }) => !!token,
     },
   }
 )
