@@ -52,7 +52,7 @@ ClockInOut is a Next.js full-stack time tracking application with organization m
 Required in `.env`:
 - `DATABASE_URL` - PostgreSQL database URL
 - `NEXTAUTH_SECRET` - NextAuth secret key
-- `NEXTAUTH_URL` - Application URL (http://localhost:3000 for dev)
+- `BASE_URL` - Application URL (http://localhost:3000 for dev)
 - `MAILGUN_API_KEY` - Mailgun API key for sending emails
 - `MAILGUN_DOMAIN` - Your Mailgun domain (e.g., inandout.work)
 - `MAILGUN_URL` - Mailgun API URL (default: https://api.mailgun.net)

@@ -5,7 +5,7 @@ const getMailgunClient = () => {
   if (!process.env.MAILGUN_API_KEY) {
     throw new Error('MAILGUN_API_KEY environment variable is required')
   }
-  
+
   const mailgun = new Mailgun(FormData)
   return mailgun.client({
     username: 'api',
@@ -21,7 +21,7 @@ export async function sendInvitationEmail(
   role: string,
   token: string
 ) {
-  const baseUrl = process.env.NEXTAUTH_URL || 'http://localhost:3000'
+  const baseUrl = process.env.BASE_URL || 'http://localhost:3000'
   const inviteUrl = `${baseUrl}/auth/signup?invitation=${token}`
 
   const emailData = {
@@ -36,19 +36,19 @@ export async function sendInvitationEmail(
               You're invited to join ${organizationName}
             </h1>
           </div>
-          
+
           <div style="margin-bottom: 24px;">
             <p style="color: #4b5563; font-size: 16px; line-height: 1.6; margin: 0 0 16px 0;">
               Hello! ${inviterName} has invited you to join <strong>${organizationName}</strong> as a <strong>${role.toLowerCase()}</strong>.
             </p>
-            
+
             <p style="color: #4b5563; font-size: 16px; line-height: 1.6; margin: 0 0 16px 0;">
               InAndOut is a time tracking application that helps teams manage their work hours and schedules efficiently.
             </p>
           </div>
 
           <div style="text-align: center; margin: 32px 0;">
-            <a href="${inviteUrl}" 
+            <a href="${inviteUrl}"
                style="display: inline-block; background: linear-gradient(45deg, #8b5cf6, #3b82f6); color: white; text-decoration: none; padding: 16px 32px; border-radius: 12px; font-weight: 600; font-size: 16px;">
               Accept Invitation
             </a>
@@ -56,7 +56,7 @@ export async function sendInvitationEmail(
 
           <div style="background: #f3f4f6; border-radius: 12px; padding: 16px; margin: 24px 0;">
             <p style="color: #6b7280; font-size: 14px; margin: 0; text-align: center;">
-              This invitation will expire in 7 days. If you can't click the button above, 
+              This invitation will expire in 7 days. If you can't click the button above,
               copy and paste this link into your browser:
             </p>
             <p style="color: #3b82f6; font-size: 14px; margin: 8px 0 0 0; text-align: center; word-break: break-all;">
@@ -122,12 +122,12 @@ export async function sendScheduleReminderEmail(
               Shift Reminder
             </h1>
           </div>
-          
+
           <div style="margin-bottom: 24px;">
             <p style="color: #4b5563; font-size: 16px; line-height: 1.6; margin: 0 0 16px 0;">
               Hi ${userName},
             </p>
-            
+
             <p style="color: #4b5563; font-size: 16px; line-height: 1.6; margin: 0 0 16px 0;">
               This is a reminder that you have an upcoming shift scheduled:
             </p>
@@ -137,7 +137,7 @@ export async function sendScheduleReminderEmail(
               <div style="display: flex; justify-content: space-between; align-items: center;">
                 <div>
                   <p style="margin: 0; font-size: 16px; opacity: 0.9;">
-                    ${startTime.toLocaleDateString()} at ${startTime.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                    ${startTime.toLocaleDateString()} at ${startTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                   </p>
                   <p style="margin: 0; font-size: 14px; opacity: 0.8;">
                     Duration: ${Math.round((endTime.getTime() - startTime.getTime()) / (1000 * 60 * 60) * 10) / 10} hours
@@ -167,7 +167,7 @@ Hi ${userName},
 This is a reminder that you have an upcoming shift scheduled:
 
 ${shiftTitle}
-${startTime.toLocaleDateString()} at ${startTime.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+${startTime.toLocaleDateString()} at ${startTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
 Duration: ${Math.round((endTime.getTime() - startTime.getTime()) / (1000 * 60 * 60) * 10) / 10} hours
 
 Organization: ${organizationName}
@@ -195,7 +195,7 @@ export async function sendEmailVerificationEmail(
   verificationToken: string,
   userName: string
 ) {
-  const baseUrl = process.env.NEXTAUTH_URL || 'http://localhost:3000'
+  const baseUrl = process.env.BASE_URL || 'http://localhost:3000'
   const verificationUrl = `${baseUrl}/auth/verify-email?token=${verificationToken}`
 
   const emailData = {
@@ -210,23 +210,23 @@ export async function sendEmailVerificationEmail(
               Verify Your Email Address
             </h1>
           </div>
-          
+
           <div style="margin-bottom: 24px;">
             <p style="color: #4b5563; font-size: 16px; line-height: 1.6; margin: 0 0 16px 0;">
               Hi ${userName},
             </p>
-            
+
             <p style="color: #4b5563; font-size: 16px; line-height: 1.6; margin: 0 0 16px 0;">
               Thanks for signing up for InAndOut! To complete your registration and start using your account, please verify your email address.
             </p>
-            
+
             <p style="color: #4b5563; font-size: 16px; line-height: 1.6; margin: 0 0 16px 0;">
               Click the button below to verify your email:
             </p>
           </div>
 
           <div style="text-align: center; margin: 32px 0;">
-            <a href="${verificationUrl}" 
+            <a href="${verificationUrl}"
                style="display: inline-block; background: linear-gradient(45deg, #10b981, #059669); color: white; text-decoration: none; padding: 16px 32px; border-radius: 12px; font-weight: 600; font-size: 16px;">
               Verify Email Address
             </a>
@@ -297,7 +297,7 @@ export async function sendPasswordResetEmail(
   resetToken: string,
   userName: string
 ) {
-  const baseUrl = process.env.NEXTAUTH_URL || 'http://localhost:3000'
+  const baseUrl = process.env.BASE_URL || 'http://localhost:3000'
   const resetUrl = `${baseUrl}/auth/reset-password?token=${resetToken}`
 
   const emailData = {
@@ -312,23 +312,23 @@ export async function sendPasswordResetEmail(
               Reset Your Password
             </h1>
           </div>
-          
+
           <div style="margin-bottom: 24px;">
             <p style="color: #4b5563; font-size: 16px; line-height: 1.6; margin: 0 0 16px 0;">
               Hi ${userName},
             </p>
-            
+
             <p style="color: #4b5563; font-size: 16px; line-height: 1.6; margin: 0 0 16px 0;">
               We received a request to reset your password for your InAndOut account.
             </p>
-            
+
             <p style="color: #4b5563; font-size: 16px; line-height: 1.6; margin: 0 0 16px 0;">
               Click the button below to create a new password:
             </p>
           </div>
 
           <div style="text-align: center; margin: 32px 0;">
-            <a href="${resetUrl}" 
+            <a href="${resetUrl}"
                style="display: inline-block; background: linear-gradient(45deg, #dc2626, #ef4444); color: white; text-decoration: none; padding: 16px 32px; border-radius: 12px; font-weight: 600; font-size: 16px;">
               Reset Password
             </a>

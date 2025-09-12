@@ -64,7 +64,7 @@ DATABASE_URL="postgresql://username:password@localhost:5432/inandout_db"
 
 # NextAuth
 NEXTAUTH_SECRET="your-super-secret-key-here"
-NEXTAUTH_URL="http://localhost:3000"
+BASE_URL="http://localhost:3000"
 
 # Mailgun (for email functionality)
 MAILGUN_API_KEY="your-mailgun-api-key"
