@@ -11,6 +11,7 @@ import TimeEntryCard from '../../components/TimeEntryCard'
 import CreateTimeEntryModal from '../../components/modals/CreateTimeEntryModal'
 import EditTimeEntryModal from '../../components/modals/EditTimeEntryModal'
 import { useModal } from '../../hooks/useModal'
+import { httpClient } from '../../lib/httpClient'
 
 interface TimeEntry {
   id: string
@@ -116,10 +117,9 @@ function TimesheetContent() {
 
   const fetchOrganizations = useCallback(async () => {
     try {
-      const response = await fetch('/api/organization/members')
-      const data = await response.json()
-      if (response.ok) {
-        const allOrgs = data.organizations || []
+      const response = await httpClient.get<{ organizations: Organization[] }>('/api/organization/members')
+      if (response.success) {
+        const allOrgs = response.data?.organizations || []
         setOrganizations(allOrgs)
         if (allOrgs.length > 0 && !selectedOrgId) {
           setSelectedOrgId(allOrgs[0].id)
@@ -133,10 +133,9 @@ function TimesheetContent() {
   const fetchProjects = useCallback(async () => {
     if (!selectedOrgId) return
     try {
-      const response = await fetch(`/api/projects?organizationId=${selectedOrgId}`)
-      const data = await response.json()
-      if (response.ok) {
-        setProjects(data.projects || [])
+      const response = await httpClient.get<{ projects: Project[] }>(`/api/projects?organizationId=${selectedOrgId}`)
+      if (response.success) {
+        setProjects(response.data?.projects || [])
       }
     } catch (error) {
       console.error('Error fetching projects:', error)
@@ -146,17 +145,16 @@ function TimesheetContent() {
   const fetchTimeEntries = useCallback(async () => {
     try {
       const url = userId ? `/api/time/entries?userId=${userId}` : '/api/time/entries'
-      const response = await fetch(url)
-      const data = await response.json()
+      const response = await httpClient.get<{ timeEntries: TimeEntry[] }>(url)
 
-      if (response.ok) {
-        setTimeEntries(data.timeEntries || [])
-        if (userId && data.timeEntries?.[0]?.user) {
-          setViewingUser(data.timeEntries[0].user.name || data.timeEntries[0].user.email)
+      if (response.success) {
+        setTimeEntries(response.data?.timeEntries || [])
+        if (userId && response.data?.timeEntries?.[0]?.user) {
+          setViewingUser(response.data.timeEntries[0].user.name || response.data.timeEntries[0].user.email)
         }
-      } else {
-        console.error('Error:', data.error)
-        if (data.error === 'Forbidden') {
+      } else if (response.status !== 401) {
+        console.error('Error:', response.error)
+        if (response.error === 'Forbidden') {
           router.push('/timesheet')
         }
       }
@@ -171,13 +169,12 @@ function TimesheetContent() {
       const url = userId
         ? `/api/shifts?organizationId=${selectedOrgId}&userId=${userId}`
         : `/api/shifts?organizationId=${selectedOrgId}`
-      const response = await fetch(url)
-      const data = await response.json()
+      const response = await httpClient.get<{ shifts: Shift[] }>(url)
 
-      if (response.ok) {
-        setShifts(data.shifts || [])
-      } else {
-        console.error('Error fetching shifts:', data.error)
+      if (response.success) {
+        setShifts(response.data?.shifts || [])
+      } else if (response.status !== 401) {
+        console.error('Error fetching shifts:', response.error)
       }
     } catch (error) {
       console.error('Error fetching shifts:', error)

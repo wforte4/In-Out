@@ -6,6 +6,7 @@ import { UsersIcon } from '@heroicons/react/24/outline'
 import AuthenticatedLayout from '../../../components/AuthenticatedLayout'
 import Button from '../../../components/Button'
 import ProjectEmployeesModal from '../../../components/modals/ProjectEmployeesModal'
+import { httpClient } from '../../../lib/httpClient'
 
 interface ProjectDetailWrapperProps {
   projectId: string
@@ -20,13 +21,15 @@ export default function ProjectDetailWrapper({ projectId, initialProject }: Proj
 
   const fetchProject = useCallback(async () => {
     try {
-      const response = await fetch(`/api/projects/${projectId}`)
-      const data = await response.json()
+      const response = await httpClient.get<{ project: Record<string, unknown> }>(`/api/projects/${projectId}`)
 
-      if (response.ok) {
-        setProject(data.project)
+      if (response.success) {
+        setProject(response.data?.project || {})
       } else {
-        console.error('Failed to load project:', data.error)
+        // Only log error if it's not a session expiry (handled by httpClient)
+        if (response.status !== 401) {
+          console.error('Failed to load project:', response.error)
+        }
       }
     } catch (error) {
       console.error('Error loading project:', error)

@@ -16,6 +16,7 @@ interface SearchableSelectProps {
   label?: string
   className?: string
   disabled?: boolean
+  size?: 'sm' | 'md' | 'lg'
 }
 
 export default function SearchableSelect({
@@ -25,7 +26,8 @@ export default function SearchableSelect({
   placeholder = "Select an option...",
   label,
   className = "",
-  disabled = false
+  disabled = false,
+  size = 'md'
 }: SearchableSelectProps) {
   const [query, setQuery] = useState('')
   const [isOpen, setIsOpen] = useState(false)
@@ -48,6 +50,13 @@ export default function SearchableSelect({
     selectedOption?.label?.includes('All team') ||
     selectedOption?.label?.includes('No name') ||
     selectedOption?.label?.includes('Choose')
+
+  // Size classes to match TextInput
+  const sizeClasses = {
+    sm: 'px-3 py-2 text-sm',
+    md: 'px-4 py-3 text-base',
+    lg: 'px-4 py-3 text-lg'
+  }
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -96,15 +105,15 @@ export default function SearchableSelect({
           type="button"
           onClick={handleToggle}
           disabled={disabled}
-          className={`relative w-full cursor-pointer rounded-xl bg-white/80 text-left shadow-sm border transition-all duration-200 py-3 pl-4 pr-10 ${
+          className={`relative w-full cursor-pointer rounded-xl bg-white/80 text-left shadow-sm border border-slate-300 transition-colors duration-200 pr-10 ${sizeClasses[size]} ${
             disabled 
-              ? 'border-slate-200 bg-slate-50 cursor-not-allowed' 
+              ? 'bg-slate-50 text-slate-500 cursor-not-allowed' 
               : isOpen 
-                ? 'border-purple-500 ring-2 ring-purple-500' 
-                : 'border-slate-300 hover:border-slate-400'
+                ? 'border-purple-500 ring-2 ring-purple-500 focus:outline-none' 
+                : 'focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500'
           }`}
         >
-          <span className={`block truncate text-sm ${
+          <span className={`block truncate ${
             isEmptySelection 
               ? 'text-slate-400 italic' 
               : 'text-slate-900'
@@ -189,7 +198,7 @@ export default function SearchableSelect({
                       }`}
                     >
                       <div className="flex items-center justify-between">
-                        <span className={`block truncate text-sm ${
+                        <span className={`block truncate ${sizeClasses[size].split(' ')[2]} ${
                           isEmptyOption ? 'text-slate-400 italic' : ''
                         }`}>
                           {option.label}

@@ -16,6 +16,7 @@ import AuthenticatedLayout from '../../components/AuthenticatedLayout'
 import SearchableSelect from '../../components/SearchableSelect'
 import Button from '../../components/Button'
 import { useSnackbar } from '../../hooks/useSnackbar'
+import { httpClient } from '../../lib/httpClient'
 
 interface Project {
   id: string
@@ -63,13 +64,15 @@ export default function ProjectsWrapper({ initialOrganizations }: ProjectsWrappe
 
     setLoading(true)
     try {
-      const response = await fetch(`/api/projects?organizationId=${selectedOrgId}`)
-      const data = await response.json()
+      const response = await httpClient.get<{ projects: Project[] }>(`/api/projects?organizationId=${selectedOrgId}`)
       
-      if (response.ok) {
-        setProjects(data.projects || [])
+      if (response.success) {
+        setProjects(response.data?.projects || [])
       } else {
-        snackbar.error(data.error || 'Failed to load projects')
+        // Only show error if it's not a session expiry (handled by httpClient)
+        if (response.status !== 401) {
+          snackbar.error(response.error || 'Failed to load projects')
+        }
       }
     } catch (error) {
       console.error('Error fetching projects:', error)

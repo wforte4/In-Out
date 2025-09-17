@@ -9,6 +9,7 @@ import NavigationCard from '../../components/NavigationCard'
 import TextInput from '../../components/TextInput'
 import ActiveTimeEntryCard from '../../components/ActiveTimeEntryCard'
 import { useSnackbar } from '../../hooks/useSnackbar'
+import { httpClient } from '../../lib/httpClient'
 
 interface TimeEntry {
   id: string
@@ -47,20 +48,22 @@ export default function Dashboard() {
   const [selectedOrgId, setSelectedOrgId] = useState<string>('')
   const [projects, setProjects] = useState<Project[]>([])
   const [selectedProjectId, setSelectedProjectId] = useState<string>('')
+  const [projectsLoading, setProjectsLoading] = useState(false)
   const snackbar = useSnackbar()
 
   const fetchActiveEntry = async () => {
     try {
-      const response = await fetch('/api/time/clock')
-      const data = await response.json()
-      setActiveEntry(data.activeEntry)
-      
-      // Set selected org and project if user is currently clocked in
-      if (data.activeEntry?.organization?.id) {
-        setSelectedOrgId(data.activeEntry.organization.id)
-      }
-      if (data.activeEntry?.project?.id) {
-        setSelectedProjectId(data.activeEntry.project.id)
+      const response = await httpClient.get<{ activeEntry: TimeEntry | null }>('/api/time/clock')
+      if (response.success) {
+        setActiveEntry(response.data?.activeEntry || null)
+        
+        // Set selected org and project if user is currently clocked in
+        if (response.data?.activeEntry?.organization?.id) {
+          setSelectedOrgId(response.data.activeEntry.organization.id)
+        }
+        if (response.data?.activeEntry?.project?.id) {
+          setSelectedProjectId(response.data.activeEntry.project.id)
+        }
       }
     } catch (error) {
       console.error('Error fetching active entry:', error)
@@ -69,12 +72,11 @@ export default function Dashboard() {
 
   const fetchOrganizations = async () => {
     try {
-      const response = await fetch('/api/organization/members')
-      const data = await response.json()
-      if (response.ok && data.organizations) {
-        setOrganizations(data.organizations)
-        if (data.organizations.length === 1) {
-          setSelectedOrgId(data.organizations[0].id)
+      const response = await httpClient.get<{ organizations: Organization[] }>('/api/organization/members')
+      if (response.success && response.data?.organizations) {
+        setOrganizations(response.data.organizations)
+        if (response.data.organizations.length === 1) {
+          setSelectedOrgId(response.data.organizations[0].id)
         }
       }
     } catch (error) {
@@ -85,15 +87,17 @@ export default function Dashboard() {
   const fetchProjects = useCallback(async () => {
     if (!selectedOrgId) return
     
+    setProjectsLoading(true)
     try {
       // Fetch only projects where the user is assigned
-      const response = await fetch(`/api/projects/assigned?organizationId=${selectedOrgId}`)
-      const data = await response.json()
-      if (response.ok) {
-        setProjects(data.projects || [])
+      const response = await httpClient.get<{ projects: Project[] }>(`/api/projects/assigned?organizationId=${selectedOrgId}`)
+      if (response.success) {
+        setProjects(response.data?.projects || [])
       }
     } catch (error) {
       console.error('Error fetching assigned projects:', error)
+    } finally {
+      setProjectsLoading(false)
     }
   }, [selectedOrgId])
 
@@ -119,27 +123,19 @@ export default function Dashboard() {
   const handleClock = async (action: 'in' | 'out') => {
     setLoading(true)
     try {
-      const response = await fetch('/api/time/clock', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          action,
-          description: action === 'in' ? description : undefined,
-          projectId: action === 'in' ? selectedProjectId || null : undefined,
-          organizationId: action === 'in' ? selectedOrgId || null : undefined
-        }),
+      const response = await httpClient.post('/api/time/clock', {
+        action,
+        description: action === 'in' ? description : undefined,
+        projectId: action === 'in' ? selectedProjectId || null : undefined,
+        organizationId: action === 'in' ? selectedOrgId || null : undefined
       })
 
-      const data = await response.json()
-
-      if (!response.ok) {
-        snackbar.error(data.error || 'Clock operation failed')
-      } else {
+      if (response.success) {
         setDescription('')
         setSelectedProjectId('')
         fetchActiveEntry()
+      } else if (response.status !== 401) {
+        snackbar.error(response.error || 'Clock operation failed')
       }
     } catch {
       snackbar.error('An error occurred')
@@ -218,7 +214,7 @@ export default function Dashboard() {
                     <div className="space-y-6">
                       {organizations.length > 1 && (
                         <div className="space-y-2">
-                          <label className="block text-lg font-semibold text-slate-800">
+                          <label className="block text-sm font-medium text-slate-700">
                             Organization
                           </label>
                           <SearchableSelect
@@ -226,25 +222,38 @@ export default function Dashboard() {
                             onChange={setSelectedOrgId}
                             options={organizations.map(org => ({ value: org.id, label: org.name }))}
                             placeholder="Choose an organization..."
+                            size="lg"
                           />
                         </div>
                       )}
 
-                      {selectedOrgId && projects.length > 0 && (
+                      {selectedOrgId && (
                         <div className="space-y-2">
-                          <label className="block text-lg font-semibold text-slate-800">
+                          <label className="block text-sm font-medium text-slate-700">
                             Project
                           </label>
                           <p className="text-sm text-slate-600">Optional: Select a project to track time against</p>
-                          <SearchableSelect
-                            value={selectedProjectId}
-                            onChange={setSelectedProjectId}
-                            options={[
-                              { value: '', label: 'No specific project' },
-                              ...projects.map(project => ({ value: project.id, label: project.name }))
-                            ]}
-                            placeholder="Choose a project..."
-                          />
+                          {projectsLoading || projects.length === 0 ? (
+                            <div className="relative w-full cursor-pointer rounded-xl bg-white/80 text-left shadow-sm border border-slate-300 transition-colors duration-200 pr-10 px-4 py-3 animate-pulse">
+                              <div className="flex items-center justify-between">
+                                <div className="h-7 bg-slate-200 rounded w-36"></div>
+                                <svg className="h-4 w-4 text-slate-300" viewBox="0 0 20 20" fill="currentColor">
+                                  <path fillRule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z" clipRule="evenodd" />
+                                </svg>
+                              </div>
+                            </div>
+                          ) : (
+                            <SearchableSelect
+                              value={selectedProjectId}
+                              onChange={setSelectedProjectId}
+                              options={[
+                                { value: '', label: 'No specific project' },
+                                ...projects.map(project => ({ value: project.id, label: project.name }))
+                              ]}
+                              placeholder="Select a project"
+                              size="lg"
+                            />
+                          )}
                         </div>
                       )}
 

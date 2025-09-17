@@ -132,9 +132,16 @@ export class SessionManager {
     this.resetTimers()
     
     // Make a request to keep session alive
-    fetch('/api/auth/session', { method: 'GET' }).catch(() => {
-      // Ignore errors, session refresh is best effort
-    })
+    fetch('/api/auth/session', { method: 'GET' })
+      .then(response => {
+        if (response.status === 401) {
+          // Session is already expired, handle immediately
+          this.handleSessionTimeout()
+        }
+      })
+      .catch(() => {
+        // Ignore network errors, session refresh is best effort
+      })
   }
   
   private async handleSessionTimeout() {
@@ -200,6 +207,12 @@ export class SessionManager {
     
     // This is an approximation since we don't have the exact start time
     return Math.max(0, this.SESSION_TIMEOUT)
+  }
+  
+  // Public method to trigger session timeout manually (called by HTTP client on 401)
+  triggerSessionTimeout(): void {
+    if (!this.isSessionValid()) return // Already handled
+    this.handleSessionTimeout()
   }
 }
 
