@@ -1,14 +1,12 @@
 import CredentialsProvider from 'next-auth/providers/credentials'
-import { PrismaAdapter } from '@next-auth/prisma-adapter'
 import { prisma } from './prisma'
 import bcrypt from 'bcryptjs'
 
 export const authOptions = {
-  adapter: PrismaAdapter(prisma),
   session: {
-    strategy: 'jwt',
-    maxAge: 8 * 60 * 60, // 8 hours
-    updateAge: 60 * 60, // 1 hour - update session if older than 1 hour
+    strategy: 'jwt' as const,
+    maxAge: 30 * 24 * 60 * 60, // 30 days
+    updateAge: 24 * 60 * 60, // 24 hours - update session if older than 24 hours
   },
   providers: [
     CredentialsProvider({
@@ -60,20 +58,12 @@ export const authOptions = {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     session: async ({ session, token }: any) => {
       if (token.uid) {
-        // Fetch fresh user data from database
-        const user = await prisma.user.findUnique({
-          where: { id: token.uid },
-          select: { id: true, name: true, email: true, profileImage: true }
-        })
-        
-        if (user) {
-          session.user = {
-            ...session.user,
-            id: user.id,
-            name: user.name,
-            email: user.email,
-            image: user.profileImage,
-          }
+        session.user = {
+          ...session.user,
+          id: token.uid,
+          name: token.name,
+          email: token.email,
+          image: token.image,
         }
       }
       return session

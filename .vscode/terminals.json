@@ -1,0 +1,112 @@
+{
+  "terminals": [
+    {
+      "name": "🚀 Dev Server",
+      "description": "Start the Next.js development server with Turbopack",
+      "command": "bun dev",
+      "color": "green",
+      "focus": true
+    },
+    {
+      "name": "🐘 Database",
+      "description": "Start PostgreSQL database with Docker Compose",
+      "command": "docker compose up -d postgres",
+      "color": "blue"
+    },
+    {
+      "name": "🎛️ Prisma Studio",
+      "description": "Open Prisma Studio database GUI",
+      "command": "bunx prisma studio",
+      "color": "purple"
+    },
+    {
+      "name": "🔧 Database Tools",
+      "description": "Prisma database operations",
+      "command": "echo '📋 Available commands:\n• bunx prisma generate - Generate Prisma client\n• bunx prisma db push - Push schema to database\n• bunx prisma migrate deploy - Run migrations\n• bunx prisma studio - Open database GUI\n\n🎯 Quick start: bunx prisma generate && bunx prisma db push'",
+      "color": "cyan"
+    },
+    {
+      "name": "🏗️ Build & Lint",
+      "description": "Build and lint commands",
+      "command": "echo '🔨 Build commands:\n• bun run build - Build for production\n• bun run lint - Run ESLint\n• bun start - Start production server\n\n🎯 Full build: bun run build'",
+      "color": "yellow"
+    },
+    {
+      "name": "📦 Package Manager",
+      "description": "Bun package management",
+      "command": "echo '📦 Package commands:\n• bun install - Install dependencies\n• bun add <package> - Add new package\n• bun remove <package> - Remove package\n• bun update - Update packages\n\n🎯 Install deps: bun install'",
+      "color": "magenta"
+    },
+    {
+      "name": "🐳 Docker Logs",
+      "description": "View Docker container logs",
+      "command": "docker compose logs -f postgres",
+      "color": "white"
+    },
+    {
+      "name": "🔍 Git Status",
+      "description": "Git repository status and quick commands",
+      "command": "echo '📊 Git Status:' && git status && echo '\n🔄 Quick commands:\n• git add . - Stage all changes\n• git commit -m \"message\" - Commit changes\n• git push - Push to remote\n• git pull - Pull from remote'",
+      "color": "red"
+    }
+  ],
+  "killCommands": [
+    {
+      "name": "🛑 Kill All Services",
+      "description": "Stop all running services and containers",
+      "commands": [
+        "echo '🛑 Stopping all services...'",
+        "docker compose down",
+        "pkill -f 'next dev'",
+        "pkill -f 'prisma studio'",
+        "echo '✅ All services stopped!'"
+      ]
+    },
+    {
+      "name": "🔄 Restart All",
+      "description": "Stop and restart all services",
+      "commands": [
+        "echo '🔄 Restarting all services...'",
+        "docker compose down",
+        "pkill -f 'next dev'",
+        "pkill -f 'prisma studio'",
+        "sleep 2",
+        "docker compose up -d postgres",
+        "echo '✅ Database restarted! Start other services manually.'"
+      ]
+    },
+    {
+      "name": "🧹 Clean Restart",
+      "description": "Full cleanup and restart with fresh dependencies",
+      "commands": [
+        "echo '🧹 Performing clean restart...'",
+        "docker compose down",
+        "pkill -f 'next dev'",
+        "pkill -f 'prisma studio'",
+        "rm -rf node_modules",
+        "rm -rf .next",
+        "bun install",
+        "bunx prisma generate",
+        "docker compose up -d postgres",
+        "echo '✅ Clean restart complete! Start dev server when ready.'"
+      ]
+    }
+  ],
+  "autoStart": [
+    "🐘 Database"
+  ],
+  "groups": [
+    {
+      "name": "🏃‍♂️ Quick Start",
+      "terminals": ["🐘 Database", "🚀 Dev Server", "🎛️ Prisma Studio"]
+    },
+    {
+      "name": "🔧 Development Tools",
+      "terminals": ["🔧 Database Tools", "🏗️ Build & Lint", "📦 Package Manager"]
+    },
+    {
+      "name": "📊 Monitoring",
+      "terminals": ["🐳 Docker Logs", "🔍 Git Status"]
+    }
+  ]
+}

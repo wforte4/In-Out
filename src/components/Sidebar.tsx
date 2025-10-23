@@ -24,7 +24,24 @@ interface SidebarProps {
 
 export default function Sidebar({ showOrganization = true, onCollapsedChange }: SidebarProps) {
   const [isCollapsed, setIsCollapsed] = useState(false)
-  const [isAdmin, setIsAdmin] = useState(false)
+  const [isAdmin, setIsAdmin] = useState(() => {
+    // Load admin status from cache immediately to prevent flash
+    if (typeof window !== 'undefined') {
+      const cached = localStorage.getItem('admin_status_cache')
+      if (cached) {
+        try {
+          const { isAdmin: cachedStatus, timestamp } = JSON.parse(cached)
+          // Use cached value if it's less than 1 hour old
+          if (Date.now() - timestamp < 60 * 60 * 1000) {
+            return cachedStatus
+          }
+        } catch {
+          // Ignore parsing errors
+        }
+      }
+    }
+    return false
+  })
   const pathname = usePathname()
   const { data: session } = useSession()
 
@@ -45,6 +62,21 @@ export default function Sidebar({ showOrganization = true, onCollapsedChange }: 
     const checkAdminStatus = async () => {
       if (!session?.user) return
 
+      // Check if we have a fresh cache (less than 1 hour old)
+      const cached = localStorage.getItem('admin_status_cache')
+      if (cached) {
+        try {
+          const { isAdmin: cachedStatus, timestamp, userId } = JSON.parse(cached)
+          // Use cached value if it's fresh and for the same user
+          if (Date.now() - timestamp < 60 * 60 * 1000 && userId === session.user.id) {
+            setIsAdmin(cachedStatus)
+            return
+          }
+        } catch {
+          // Continue to API call if cache is invalid
+        }
+      }
+
       try {
         const response = await fetch('/api/organization/members')
         const data = await response.json()
@@ -52,10 +84,19 @@ export default function Sidebar({ showOrganization = true, onCollapsedChange }: 
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           const hasAdminAccess = data.organizations.some((org: any) => org.isAdmin)
           setIsAdmin(hasAdminAccess)
+          
+          // Cache the result with timestamp and user ID
+          localStorage.setItem('admin_status_cache', JSON.stringify({
+            isAdmin: hasAdminAccess,
+            timestamp: Date.now(),
+            userId: session.user.id
+          }))
         }
       } catch (error) {
         console.error('Error checking admin status:', error)
         setIsAdmin(false)
+        // Remove invalid cache on error
+        localStorage.removeItem('admin_status_cache')
       }
     }
 

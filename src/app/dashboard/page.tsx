@@ -5,11 +5,15 @@ import { useRouter } from 'next/navigation'
 import AuthenticatedLayout from '../../components/AuthenticatedLayout'
 import SearchableSelect from '../../components/SearchableSelect'
 import Button from '../../components/Button'
-import NavigationCard from '../../components/NavigationCard'
 import TextInput from '../../components/TextInput'
 import ActiveTimeEntryCard from '../../components/ActiveTimeEntryCard'
 import { useSnackbar } from '../../hooks/useSnackbar'
 import { httpClient } from '../../lib/httpClient'
+import {
+  DocumentTextIcon,
+  FolderIcon,
+  BuildingOfficeIcon
+} from '@heroicons/react/24/outline'
 
 interface TimeEntry {
   id: string
@@ -49,6 +53,13 @@ export default function Dashboard() {
   const [projects, setProjects] = useState<Project[]>([])
   const [selectedProjectId, setSelectedProjectId] = useState<string>('')
   const [projectsLoading, setProjectsLoading] = useState(false)
+  const [weeklyStats, setWeeklyStats] = useState<{
+    hoursThisWeek: number
+    entriesThisWeek: number
+    todayHours: number
+    avgDailyHours: number
+  } | null>(null)
+  const [statsLoading, setStatsLoading] = useState(true)
   const snackbar = useSnackbar()
 
   const fetchActiveEntry = async () => {
@@ -112,6 +123,66 @@ export default function Dashboard() {
     }
   }, [selectedOrgId, fetchProjects])
 
+  const fetchWeeklyStats = async () => {
+    try {
+      setStatsLoading(true)
+      const startOfWeek = new Date()
+      startOfWeek.setDate(startOfWeek.getDate() - startOfWeek.getDay())
+      startOfWeek.setHours(0, 0, 0, 0)
+      
+      const endOfWeek = new Date(startOfWeek)
+      endOfWeek.setDate(endOfWeek.getDate() + 6)
+      endOfWeek.setHours(23, 59, 59, 999)
+
+      const today = new Date()
+      today.setHours(0, 0, 0, 0)
+      const tomorrow = new Date(today)
+      tomorrow.setDate(tomorrow.getDate() + 1)
+
+      // Fetch this week's entries
+      const weekResponse = await httpClient.get<{ entries: TimeEntry[] }>(
+        `/api/time/entries?startDate=${startOfWeek.toISOString()}&endDate=${endOfWeek.toISOString()}`
+      )
+      
+      // Fetch today's entries
+      const todayResponse = await httpClient.get<{ entries: TimeEntry[] }>(
+        `/api/time/entries?startDate=${today.toISOString()}&endDate=${tomorrow.toISOString()}`
+      )
+
+      if (weekResponse.success && todayResponse.success) {
+        const weekEntries = weekResponse.data?.entries || []
+        const todayEntries = todayResponse.data?.entries || []
+        
+        const hoursThisWeek = weekEntries.reduce((total, entry) => total + (entry.totalHours || 0), 0)
+        const todayHours = todayEntries.reduce((total, entry) => total + (entry.totalHours || 0), 0)
+        const avgDailyHours = hoursThisWeek / 7
+
+        setWeeklyStats({
+          hoursThisWeek,
+          entriesThisWeek: weekEntries.length,
+          todayHours,
+          avgDailyHours
+        })
+      }
+    } catch (error) {
+      console.error('Error fetching weekly stats:', error)
+    } finally {
+      setStatsLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    fetchActiveEntry()
+    fetchOrganizations()
+    fetchWeeklyStats()
+  }, [])
+
+  useEffect(() => {
+    if (selectedOrgId) {
+      fetchProjects()
+    }
+  }, [selectedOrgId, fetchProjects])
+
   useEffect(() => {
     const timer = setInterval(() => {
       setCurrentTime(new Date())
@@ -134,6 +205,7 @@ export default function Dashboard() {
         setDescription('')
         setSelectedProjectId('')
         fetchActiveEntry()
+        fetchWeeklyStats() // Refresh stats after clocking in/out
       } else if (response.status !== 401) {
         snackbar.error(response.error || 'Clock operation failed')
       }
@@ -229,30 +301,32 @@ export default function Dashboard() {
 
                       {selectedOrgId && (
                         <div className="space-y-2">
-                          <label className="block text-sm font-medium text-slate-700">
-                            Project
-                          </label>
-                          <p className="text-sm text-slate-600">Optional: Select a project to track time against</p>
-                          {projectsLoading || projects.length === 0 ? (
-                            <div className="relative w-full cursor-pointer rounded-xl bg-white/80 text-left shadow-sm border border-slate-300 transition-colors duration-200 pr-10 px-4 py-3 animate-pulse">
-                              <div className="flex items-center justify-between">
-                                <div className="h-7 bg-slate-200 rounded w-36"></div>
-                                <svg className="h-4 w-4 text-slate-300" viewBox="0 0 20 20" fill="currentColor">
-                                  <path fillRule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z" clipRule="evenodd" />
-                                </svg>
-                              </div>
+                          {projectsLoading ? (
+                            <div className="animate-pulse space-y-2">
+                              {/* Project label skeleton */}
+                              <div className="h-5 bg-slate-200 rounded w-16"></div>
+                              {/* Project description skeleton */}
+                              <div className="h-4 bg-slate-200 rounded w-64"></div>
+                              {/* Project dropdown skeleton */}
+                              <div className="h-12 bg-slate-200 rounded-xl"></div>
                             </div>
                           ) : (
-                            <SearchableSelect
-                              value={selectedProjectId}
-                              onChange={setSelectedProjectId}
-                              options={[
-                                { value: '', label: 'No specific project' },
-                                ...projects.map(project => ({ value: project.id, label: project.name }))
-                              ]}
-                              placeholder="Select a project"
-                              size="lg"
-                            />
+                            <>
+                              <label className="block text-sm font-medium text-slate-700">
+                                Project
+                              </label>
+                              <p className="text-sm text-slate-600">Optional: Select a project to track time against</p>
+                              <SearchableSelect
+                                value={selectedProjectId}
+                                onChange={setSelectedProjectId}
+                                options={[
+                                  { value: '', label: 'No specific project' },
+                                  ...projects.map(project => ({ value: project.id, label: project.name }))
+                                ]}
+                                placeholder="Select a project"
+                                size="lg"
+                              />
+                            </>
                           )}
                         </div>
                       )}
@@ -288,48 +362,99 @@ export default function Dashboard() {
               </div>
             </div>
 
-            {/* Quick Actions Card */}
-            <div className="bg-white/70 backdrop-blur-sm overflow-hidden shadow-xl rounded-3xl border border-slate-200/50">
-              <div className="px-8 py-8">
-                <h3 className="text-2xl font-bold text-slate-900 mb-8">
-                  Quick Actions
-                </h3>
-                <div className="space-y-4">
-                  <NavigationCard
-                    title="View Timesheet"
-                    description="Review your time entries and total hours"
-                    onClick={() => router.push('/timesheet')}
-                    colorScheme="blue"
-                    icon={
-                      <svg className="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                      </svg>
-                    }
-                  />
+            {/* Sidebar */}
+            <div className="space-y-6">
+              {/* Weekly Overview Card */}
+              <div className="bg-white/70 backdrop-blur-sm overflow-hidden shadow-xl rounded-3xl border border-slate-200/50">
+                <div className="px-6 py-6">
+                  <h3 className="text-lg font-bold text-slate-900 mb-4">
+                    This Week
+                  </h3>
                   
-                  <NavigationCard
-                    title="Projects"
-                    description="Manage and track project progress"
-                    onClick={() => router.push('/projects')}
-                    colorScheme="orange"
-                    icon={
-                      <svg className="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 9a2 2 0 00-2 2v2" />
-                      </svg>
-                    }
-                  />
-                  
-                  <NavigationCard
-                    title="Organization"
-                    description="Manage your team and settings"
-                    onClick={() => router.push('/organization')}
-                    colorScheme="purple"
-                    icon={
-                      <svg className="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-                      </svg>
-                    }
-                  />
+                  {statsLoading ? (
+                    <div className="space-y-4 animate-pulse">
+                      <div className="space-y-2">
+                        <div className="h-4 bg-slate-200 rounded w-20"></div>
+                        <div className="h-8 bg-slate-200 rounded w-16"></div>
+                      </div>
+                      <div className="space-y-2">
+                        <div className="h-4 bg-slate-200 rounded w-24"></div>
+                        <div className="h-8 bg-slate-200 rounded w-20"></div>
+                      </div>
+                      <div className="space-y-2">
+                        <div className="h-4 bg-slate-200 rounded w-28"></div>
+                        <div className="h-8 bg-slate-200 rounded w-16"></div>
+                      </div>
+                    </div>
+                  ) : weeklyStats ? (
+                    <div className="space-y-4">
+                      <div>
+                        <p className="text-sm text-slate-600">Total Hours</p>
+                        <p className="text-2xl font-bold text-slate-900">
+                          {weeklyStats.hoursThisWeek.toFixed(1)}h
+                        </p>
+                      </div>
+                      
+                      <div>
+                        <p className="text-sm text-slate-600">Today</p>
+                        <p className="text-2xl font-bold text-green-600">
+                          {weeklyStats.todayHours.toFixed(1)}h
+                        </p>
+                      </div>
+                      
+                      <div>
+                        <p className="text-sm text-slate-600">Daily Average</p>
+                        <p className="text-2xl font-bold text-slate-700">
+                          {weeklyStats.avgDailyHours.toFixed(1)}h
+                        </p>
+                      </div>
+                      
+                      <div>
+                        <p className="text-sm text-slate-600">Time Entries</p>
+                        <p className="text-2xl font-bold text-purple-600">
+                          {weeklyStats.entriesThisWeek}
+                        </p>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="text-center py-4">
+                      <p className="text-slate-500">No data available</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Quick Actions Card */}
+              <div className="bg-white/70 backdrop-blur-sm overflow-hidden shadow-xl rounded-3xl border border-slate-200/50">
+                <div className="px-6 py-6">
+                  <h3 className="text-lg font-bold text-slate-900 mb-4">
+                    Quick Actions
+                  </h3>
+                  <div className="space-y-3">
+                    <button
+                      onClick={() => router.push('/timesheet')}
+                      className="w-full flex items-center justify-between p-3 rounded-xl bg-gradient-to-r from-blue-500 to-blue-600 text-white hover:from-blue-600 hover:to-blue-700 transition-all duration-200 cursor-pointer"
+                    >
+                      <span className="font-medium">Timesheet</span>
+                      <DocumentTextIcon className="w-5 h-5" />
+                    </button>
+                    
+                    <button
+                      onClick={() => router.push('/projects')}
+                      className="w-full flex items-center justify-between p-3 rounded-xl bg-gradient-to-r from-orange-500 to-orange-600 text-white hover:from-orange-600 hover:to-orange-700 transition-all duration-200 cursor-pointer"
+                    >
+                      <span className="font-medium">Projects</span>
+                      <FolderIcon className="w-5 h-5" />
+                    </button>
+                    
+                    <button
+                      onClick={() => router.push('/organization')}
+                      className="w-full flex items-center justify-between p-3 rounded-xl bg-gradient-to-r from-purple-500 to-purple-600 text-white hover:from-purple-600 hover:to-purple-700 transition-all duration-200 cursor-pointer"
+                    >
+                      <span className="font-medium">Organization</span>
+                      <BuildingOfficeIcon className="w-5 h-5" />
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>

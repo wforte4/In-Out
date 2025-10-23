@@ -5,7 +5,6 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import UserDropdown from './UserDropdown'
 import Sidebar from './Sidebar'
-import { initializeSessionManager, cleanupSessionManager } from '@/lib/sessionManager'
 
 interface AuthenticatedLayoutProps {
   children: React.ReactNode
@@ -21,14 +20,6 @@ export default function AuthenticatedLayout({ children }: AuthenticatedLayoutPro
     if (!session) {
       router.push('/auth/signin')
       return
-    }
-    
-    // Initialize session management for authenticated users
-    initializeSessionManager()
-    
-    return () => {
-      // Cleanup on unmount
-      cleanupSessionManager()
     }
   }, [session, status, router])
 

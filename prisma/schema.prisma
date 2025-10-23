@@ -16,6 +16,7 @@ model User {
   defaultHourlyRate  Float?         // Default hourly rate for the employee
   emailVerified      Boolean        @default(false)
   emailVerifiedAt    DateTime?
+  systemAdmin        Boolean        @default(false) // System administrator access
   createdAt          DateTime       @default(now())
   updatedAt          DateTime       @updatedAt
   accounts           Account[]

@@ -8,8 +8,8 @@ export class SessionManager {
   private warningShown = false
   
   // Session configuration
-  private readonly SESSION_TIMEOUT = 8 * 60 * 60 * 1000 // 8 hours
-  private readonly WARNING_TIME = 15 * 60 * 1000 // 15 minutes before timeout
+  private readonly SESSION_TIMEOUT = 30 * 24 * 60 * 60 * 1000 // 30 days
+  private readonly WARNING_TIME = 24 * 60 * 60 * 1000 // 24 hours before timeout
   
   constructor() {
     this.setupEventListeners()
@@ -83,7 +83,7 @@ export class SessionManager {
         <div class="ml-3">
           <h3 class="text-sm font-medium text-yellow-800">Session Expiring</h3>
           <p class="mt-1 text-xs text-yellow-700">
-            Your session will expire in 15 minutes due to inactivity.
+            Your session will expire in 24 hours due to inactivity.
           </p>
           <div class="mt-3 flex gap-2">
             <button id="extend-session" class="text-xs bg-yellow-100 hover:bg-yellow-200 text-yellow-800 px-2 py-1 rounded">
