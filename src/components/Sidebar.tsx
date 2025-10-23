@@ -68,7 +68,7 @@ export default function Sidebar({ showOrganization = true, onCollapsedChange }: 
         try {
           const { isAdmin: cachedStatus, timestamp, userId } = JSON.parse(cached)
           // Use cached value if it's fresh and for the same user
-          if (Date.now() - timestamp < 60 * 60 * 1000 && userId === session.user.id) {
+          if (Date.now() - timestamp < 60 * 60 * 1000 && userId === (session.user as { id: string }).id) {
             setIsAdmin(cachedStatus)
             return
           }
@@ -89,7 +89,7 @@ export default function Sidebar({ showOrganization = true, onCollapsedChange }: 
           localStorage.setItem('admin_status_cache', JSON.stringify({
             isAdmin: hasAdminAccess,
             timestamp: Date.now(),
-            userId: session.user.id
+            userId: (session.user as { id: string }).id
           }))
         }
       } catch (error) {
