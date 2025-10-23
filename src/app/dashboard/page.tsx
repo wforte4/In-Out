@@ -123,36 +123,50 @@ export default function Dashboard() {
     }
   }, [selectedOrgId, fetchProjects])
 
-  const fetchWeeklyStats = async () => {
+  const getWeekStart = (date: Date) => {
+    const d = new Date(date)
+    const day = d.getDay() // 0 = Sunday, 1 = Monday, etc.
+    const diff = d.getDate() - day
+    d.setDate(diff)
+    // Set to beginning of day to avoid time issues
+    d.setHours(0, 0, 0, 0)
+    return d
+  }
+
+  const fetchWeeklyStats = useCallback(async () => {
     try {
       setStatsLoading(true)
-      const startOfWeek = new Date()
-      startOfWeek.setDate(startOfWeek.getDate() - startOfWeek.getDay())
-      startOfWeek.setHours(0, 0, 0, 0)
       
-      const endOfWeek = new Date(startOfWeek)
-      endOfWeek.setDate(endOfWeek.getDate() + 6)
-      endOfWeek.setHours(23, 59, 59, 999)
-
-      const today = new Date()
-      today.setHours(0, 0, 0, 0)
-      const tomorrow = new Date(today)
-      tomorrow.setDate(tomorrow.getDate() + 1)
-
-      // Fetch this week's entries
-      const weekResponse = await httpClient.get<{ entries: TimeEntry[] }>(
-        `/api/time/entries?startDate=${startOfWeek.toISOString()}&endDate=${endOfWeek.toISOString()}`
-      )
+      // Fetch ALL time entries like the timesheet page does
+      const response = await httpClient.get<{ timeEntries: TimeEntry[] }>('/api/time/entries')
       
-      // Fetch today's entries
-      const todayResponse = await httpClient.get<{ entries: TimeEntry[] }>(
-        `/api/time/entries?startDate=${today.toISOString()}&endDate=${tomorrow.toISOString()}`
-      )
-
-      if (weekResponse.success && todayResponse.success) {
-        const weekEntries = weekResponse.data?.entries || []
-        const todayEntries = todayResponse.data?.entries || []
+      if (response.success) {
+        const allEntries = response.data?.timeEntries || []
+        const now = new Date()
         
+        // Use exact same logic as timesheet page
+        const startOfWeek = getWeekStart(now)
+        const endOfWeek = new Date(startOfWeek)
+        endOfWeek.setDate(startOfWeek.getDate() + 6)
+        endOfWeek.setHours(23, 59, 59, 999)
+
+        const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+
+        // Filter for this week - same logic as timesheet
+        const weekEntries = allEntries.filter(entry => {
+          const entryDate = new Date(entry.clockIn)
+          const entryDay = new Date(entryDate.getFullYear(), entryDate.getMonth(), entryDate.getDate())
+          return entryDay >= startOfWeek && entryDay <= endOfWeek
+        })
+
+        // Filter for today - same logic as timesheet
+        const todayEntries = allEntries.filter(entry => {
+          const entryDate = new Date(entry.clockIn)
+          const entryDay = new Date(entryDate.getFullYear(), entryDate.getMonth(), entryDate.getDate())
+          return entryDay.getTime() === today.getTime()
+        })
+
+        // Calculate hours using same logic as timesheet: entry.totalHours || 0
         const hoursThisWeek = weekEntries.reduce((total, entry) => total + (entry.totalHours || 0), 0)
         const todayHours = todayEntries.reduce((total, entry) => total + (entry.totalHours || 0), 0)
         const avgDailyHours = hoursThisWeek / 7
@@ -169,13 +183,13 @@ export default function Dashboard() {
     } finally {
       setStatsLoading(false)
     }
-  }
+  }, [])
 
   useEffect(() => {
     fetchActiveEntry()
     fetchOrganizations()
     fetchWeeklyStats()
-  }, [])
+  }, [fetchWeeklyStats])
 
   useEffect(() => {
     if (selectedOrgId) {
